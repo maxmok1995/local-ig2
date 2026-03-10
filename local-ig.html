@@ -1,0 +1,2733 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>本地相册</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#000;--s1:#0a0a0a;--s2:#1a1a1a;--border:#262626;
+  --accent:#0095f6;--text:#fafafa;--muted:#8e8e8e;--green:#3eb489;
+}
+html,body{height:100%;overflow:hidden;background:var(--bg);color:var(--text);
+  font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;font-size:14px}
+
+/* ── Header ─────────────────────────────────────────────── */
+#hdr{
+  position:fixed;top:0;left:0;right:0;height:48px;
+  background:#000;
+  border-bottom:1px solid var(--border);
+  display:flex;align-items:center;gap:8px;padding:0 14px;z-index:90;
+}
+#hdrTitle{font-size:15px;font-weight:600;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.hbtn{
+  background:none;border:1px solid var(--border);color:var(--text);
+  padding:5px 13px;border-radius:8px;font-size:12px;cursor:pointer;
+  white-space:nowrap;transition:background .15s;flex-shrink:0;
+}
+.hbtn:hover{background:var(--s2)}
+.hbtn.pri{background:var(--accent);border-color:var(--accent)}
+.hbtn.pri:hover{opacity:.85}
+.hbtn.ghost{padding:5px 8px;font-size:18px;border:none}
+.hbtn.ghost:hover{background:var(--s2)}
+
+/* ── Views ───────────────────────────────────────────────── */
+.view{position:fixed;top:48px;left:0;right:0;bottom:0;overflow-y:auto;display:none;background:var(--bg)}
+.view.on{display:block}
+#vLB{top:0;z-index:200;display:none}
+#vLB.on{display:flex;flex-direction:column}
+
+/* ── Welcome ─────────────────────────────────────────────── */
+#vWelcome{display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:18px;padding:40px;text-align:center}
+#vWelcome.on{display:flex}
+.wIcon{font-size:60px;line-height:1}
+.wTitle{font-size:22px;font-weight:700}
+.wDesc{color:var(--muted);line-height:1.8;max-width:320px}
+.wActions{display:flex;flex-direction:column;gap:10px;width:100%;max-width:280px}
+.wBtn{
+  background:var(--accent);color:#fff;border:none;
+  padding:13px 24px;border-radius:10px;font-size:15px;font-weight:500;
+  cursor:pointer;transition:opacity .15s;
+}
+.wBtn:hover{opacity:.85}
+.wBtnGhost{
+  background:var(--s2);color:var(--text);border:1px solid var(--border);
+  padding:11px 24px;border-radius:10px;font-size:14px;cursor:pointer;
+  transition:background .15s;
+}
+.wBtnGhost:hover{background:#252525}
+.wNote{font-size:11px;color:var(--muted);max-width:300px;text-align:center;line-height:1.6}
+
+/* ── IG Import Panel ─────────────────────────────────────── */
+#igPanel{
+  display:none;flex-direction:column;gap:12px;
+  padding:20px;background:var(--s2);border-radius:12px;
+  border:1px solid var(--border);width:100%;max-width:340px;
+  margin-top:4px;
+}
+#igPanel.on{display:flex}
+.igRow{display:flex;gap:8px}
+#igInput{
+  flex:1;background:var(--s1);border:1px solid var(--border);
+  color:var(--text);padding:9px 12px;border-radius:8px;font-size:14px;
+  outline:none;min-width:0;
+}
+#igInput::placeholder{color:var(--muted)}
+#igInput:focus{border-color:var(--accent)}
+#igFetchBtn{
+  background:var(--accent);color:#fff;border:none;
+  padding:9px 16px;border-radius:8px;font-size:13px;cursor:pointer;
+  flex-shrink:0;transition:opacity .15s;
+}
+#igFetchBtn:hover{opacity:.85}
+.igModeToggle{display:flex;border:1px solid var(--border);border-radius:8px;overflow:hidden;width:fit-content}
+.igModeBtn{background:none;border:none;color:var(--muted);padding:5px 14px;font-size:12px;cursor:pointer;transition:background .15s,color .15s}
+.igModeBtn.active{background:var(--accent);color:#fff}
+.igModeBtn:not(.active):hover{background:var(--s2)}
+.igRangeNum{width:70px;background:var(--s1);border:1px solid var(--border);color:var(--text);padding:6px 8px;border-radius:8px;font-size:13px;outline:none;text-align:center}
+.igRangeNum:focus{border-color:#555}
+.igRangePreset{background:none;border:1px solid var(--border);color:var(--muted);padding:3px 9px;border-radius:12px;font-size:11px;cursor:pointer;white-space:nowrap;transition:all .15s}
+.igRangePreset:hover{border-color:var(--accent);color:var(--accent)}
+.igRangePreset.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.igRangeLbl{font-size:12px;color:var(--muted);white-space:nowrap}
+.igNote{font-size:12px;color:var(--muted);line-height:1.6}
+.igStep{display:none;flex-direction:column;gap:6px}
+.igStep.on{display:flex}
+.igStepLabel{font-size:11px;color:var(--muted);font-weight:500;letter-spacing:.03em}
+.igStepLabel span{
+  display:inline-block;background:var(--accent);color:#fff;
+  width:16px;height:16px;border-radius:50%;text-align:center;
+  line-height:16px;font-size:10px;margin-right:5px;
+}
+.igCmdRow{display:flex;align-items:stretch;gap:0;border-radius:8px;overflow:hidden;border:1px solid var(--border)}
+.igCmd{
+  flex:1;font-family:monospace;font-size:12px;color:#c9d1d9;
+  background:var(--s1);padding:10px 12px;line-height:1.6;
+  word-break:break-all;white-space:pre-wrap;border:none;outline:none;
+  resize:none;cursor:text;
+}
+.igCopyBtn{
+  background:#1f1f1f;border:none;border-left:1px solid var(--border);
+  color:var(--muted);padding:0 12px;cursor:pointer;font-size:12px;
+  white-space:nowrap;transition:background .15s,color .15s;flex-shrink:0;
+}
+.igCopyBtn:hover{background:var(--s2);color:var(--text)}
+.igCopyBtn.done{color:var(--green)}
+
+/* ── Home grid ───────────────────────────────────────────── */
+#vHome{padding:2px}
+.homeGrid{display:grid;grid-template-columns:repeat(3,1fr);gap:2px}
+@media(min-width:540px){.homeGrid{grid-template-columns:repeat(4,1fr)}}
+@media(min-width:720px){.homeGrid{grid-template-columns:repeat(5,1fr)}}
+@media(min-width:960px){.homeGrid{grid-template-columns:repeat(6,1fr)}}
+.albumCard{
+  position:relative;aspect-ratio:1;overflow:hidden;
+  background:var(--s2);cursor:pointer;
+}
+.albumCard img{width:100%;height:100%;object-fit:cover;display:block;transition:transform .25s}
+.albumCard:hover img{transform:scale(1.04)}
+.albumCard .multiIcon{
+  position:absolute;top:7px;right:8px;font-size:14px;
+  filter:drop-shadow(0 1px 3px rgba(0,0,0,.9));
+}
+.albumCard .igIcon{
+  position:absolute;top:7px;left:8px;font-size:12px;
+  background:rgba(0,0,0,.6);padding:2px 6px;border-radius:10px;color:#fff;
+}
+.albumCard .overlay{
+  position:absolute;bottom:0;left:0;right:0;
+  padding:28px 8px 8px;
+  background:linear-gradient(transparent,rgba(0,0,0,.82));
+  pointer-events:none;
+}
+.albumCard .aName{font-size:12px;font-weight:600;color:#fff;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.albumCard .aMeta{font-size:10px;color:rgba(255,255,255,.6);margin-top:2px;
+  display:flex;gap:6px;align-items:center}
+.albumCard .cardDate{font-size:10px;color:rgba(255,255,255,.45);margin-bottom:1px;letter-spacing:.02em}
+.albumCard .cardLoc{font-size:10px;color:rgba(255,255,255,.7);margin-bottom:2px;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:flex;align-items:center;gap:3px}
+
+/* ── Album feed ───────────────────────────────────────────── */
+#vAlbum{max-width:700px;margin:0 auto;padding-bottom:60px}
+.albumMeta{padding:18px 16px;border-bottom:1px solid var(--border);margin-bottom:3px}
+.albumMetaTitle{
+  font-size:20px;font-weight:700;background:none;border:none;
+  color:var(--text);width:100%;outline:none;margin-bottom:8px;
+}
+.albumMetaRow{display:flex;align-items:center;gap:10px;margin-bottom:8px;flex-wrap:wrap}
+.albumLocation{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:4px}
+.albumLocationInput{
+  font-size:13px;color:var(--muted);background:none;border:none;
+  outline:none;font-family:inherit;flex:1;min-width:0;
+  padding:0;cursor:text;
+}
+.albumLocationInput::placeholder{color:#3a3a3a}
+.albumLocationInput:focus{color:var(--text)}
+.albumIgLink{
+  font-size:12px;color:var(--accent);text-decoration:none;
+  border:1px solid var(--border);padding:3px 8px;border-radius:12px;
+  transition:background .15s;margin-left:auto;white-space:nowrap;
+}
+.albumIgLink:hover{background:var(--s2)}
+.albumLikes{font-size:12px;color:var(--muted)}
+.albumMetaDesc{
+  font-size:14px;background:none;border:none;color:var(--text);
+  width:100%;resize:none;outline:none;font-family:inherit;
+  line-height:1.7;
+}
+.albumMetaDesc::placeholder{color:#3a3a3a}
+.albumMetaCount{font-size:11px;color:var(--muted);margin-top:6px}
+
+.photoPost{margin-bottom:3px}
+.postImgWrap{cursor:pointer;background:#050505;line-height:0;position:relative}
+.postImgWrap img,.postImgWrap video{width:100%;max-height:88vh;object-fit:contain;display:block;background:#000}
+.postVideoTag{
+  position:absolute;top:10px;right:10px;
+  background:rgba(0,0,0,.6);color:#fff;font-size:11px;
+  padding:3px 8px;border-radius:10px;
+}
+.postInfo{padding:10px 14px 14px;background:var(--s1)}
+.postDateRow{display:flex;align-items:center;gap:8px;margin-bottom:7px;flex-wrap:wrap}
+.postDate{font-size:11px;color:var(--muted)}
+.postLoc{font-size:11px;color:var(--muted);display:flex;align-items:center;gap:3px}
+.postCaption{
+  font-size:14px;line-height:1.7;background:none;border:none;
+  color:var(--text);width:100%;resize:none;outline:none;font-family:inherit;
+  min-height:22px;
+}
+.postCaption::placeholder{color:#333}
+
+/* ── Lightbox ─────────────────────────────────────────────── */
+#vLB{background:#000}
+.lbHdr{
+  flex-shrink:0;height:48px;background:#000;
+  display:flex;align-items:center;padding:0 12px;gap:8px;
+  border-bottom:1px solid var(--border);
+}
+.lbCounter{font-size:12px;color:var(--muted)}
+.lbHdrRight{display:flex;align-items:center;gap:8px;margin-left:auto}
+.lbDate{font-size:12px;color:var(--muted)}
+.lbLoc{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:3px}
+.lbIgLink{
+  font-size:12px;color:var(--accent);text-decoration:none;
+  padding:3px 8px;border:1px solid var(--border);border-radius:10px;
+}
+.lbIgLink:hover{background:var(--s2)}
+.lbImgArea{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;position:relative}
+.lbImgArea img,.lbImgArea video{max-width:100%;max-height:100%;object-fit:contain;user-select:none}
+.lbNav{
+  position:absolute;top:50%;transform:translateY(-50%);
+  background:rgba(0,0,0,.45);border:none;color:#fff;
+  font-size:26px;padding:10px 9px;cursor:pointer;border-radius:7px;
+  transition:background .15s;line-height:1;
+}
+.lbNav:hover{background:rgba(0,0,0,.8)}
+.lbNav:disabled{opacity:.15;cursor:default}
+.lbNav.l{left:10px}.lbNav.r{right:10px}
+.lbFoot{
+  flex-shrink:0;padding:10px 18px 16px;background:#000;
+  border-top:1px solid var(--border);min-height:54px;
+}
+.lbCaption{
+  font-size:14px;color:var(--text);background:none;border:none;
+  outline:none;width:100%;resize:none;font-family:inherit;line-height:1.7;
+}
+.lbCaption::placeholder{color:#333}
+
+/* ── Per-photo action buttons ────────────────────────────── */
+.postActions{
+  position:absolute;top:8px;right:8px;
+  display:flex;gap:5px;opacity:0;transition:opacity .18s;z-index:10;
+}
+.postImgWrap:hover .postActions{opacity:1}
+.postActBtn{
+  background:rgba(0,0,0,.62);backdrop-filter:blur(4px);
+  border:none;color:#fff;font-size:15px;
+  width:30px;height:30px;border-radius:8px;
+  cursor:pointer;display:flex;align-items:center;justify-content:center;
+  transition:background .15s;flex-shrink:0;line-height:1;
+}
+.postActBtn:hover{background:rgba(0,0,0,.88)}
+.lbActions{display:flex;gap:8px;margin-bottom:8px;}
+.lbActBtn{
+  background:var(--s2);border:1px solid var(--border);
+  color:var(--text);font-size:12px;padding:5px 10px;border-radius:8px;
+  cursor:pointer;display:flex;align-items:center;gap:5px;
+  transition:background .15s;white-space:nowrap;
+}
+.lbActBtn:hover{background:#252525}
+
+/* ── Misc ─────────────────────────────────────────────────── */
+.loading{display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:14px;padding:80px 20px;color:var(--muted)}
+.spin{width:28px;height:28px;border:2px solid var(--border);
+  border-top-color:var(--accent);border-radius:50%;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.empty{padding:60px 20px;text-align:center;color:var(--muted)}
+.toast{
+  position:fixed;bottom:24px;left:50%;
+  transform:translateX(-50%) translateY(8px);
+  background:#fff;color:#111;padding:8px 18px;border-radius:18px;
+  font-size:13px;font-weight:500;opacity:0;
+  transition:opacity .2s,transform .2s;pointer-events:none;z-index:999;
+}
+.toast.on{opacity:1;transform:translateX(-50%) translateY(0)}
+::-webkit-scrollbar{width:3px}
+::-webkit-scrollbar-thumb{background:#2a2a2a;border-radius:2px}
+input[type=file]{display:none}
+/* ── Language selector ───────────────────────────────────── */
+#langSel{
+  background:var(--s2);border:1px solid var(--border);color:var(--text);
+  padding:4px 6px;border-radius:7px;font-size:12px;cursor:pointer;
+  outline:none;flex-shrink:0;
+}
+#langSel:hover{border-color:#555}
+#langSel option{background:var(--s2)}
+/* ── Filter & Tags ───────────────────────────────────────── */
+.filterBar{
+  display:flex;flex-wrap:wrap;gap:6px;
+  padding:9px 10px;border-bottom:1px solid var(--border);
+  background:var(--bg);
+  position:sticky;top:0;z-index:10;
+}
+.filterChip{
+  white-space:nowrap;padding:5px 12px;border-radius:18px;
+  border:1px solid var(--border);background:var(--s2);
+  color:var(--text);font-size:12px;cursor:pointer;flex-shrink:0;
+  transition:background .15s,border-color .15s,color .15s;
+}
+.filterChip:hover{border-color:#555}
+.filterChip.active{background:var(--accent);border-color:var(--accent);color:#fff}
+.filterChip.l2chip{
+  font-size:11px;padding:3px 9px;border-radius:12px;
+  border-style:dashed;opacity:.8;
+}
+.filterChip.l2chip:hover{opacity:1}
+.filterChip.l2chip.active{opacity:1;border-style:solid}
+.l2row{
+  display:flex;flex-wrap:wrap;gap:4px;
+  padding:3px 0 5px 20px;width:100%;
+  border-left:2px solid var(--border);margin-left:6px;
+}
+.tagEditor{
+  display:flex;flex-wrap:wrap;align-items:center;gap:6px;
+  padding:9px 14px;border-bottom:1px solid var(--border);
+  background:var(--s1);min-height:42px;
+}
+.tagChip{
+  display:inline-flex;align-items:center;gap:2px;
+  padding:3px 8px 3px 10px;border-radius:14px;
+  background:var(--s2);border:1px solid var(--border);
+  font-size:12px;color:var(--text);flex-shrink:0;
+}
+.tagX{
+  background:none;border:none;color:var(--muted);
+  cursor:pointer;font-size:16px;line-height:1;
+  padding:0 0 0 2px;transition:color .15s;
+}
+.tagX:hover{color:#ff6b6b}
+.tagInput{
+  background:none;border:none;color:var(--text);
+  font-size:12px;outline:none;min-width:80px;padding:2px 0;
+}
+.tagInput::placeholder{color:#555}
+.tagAddRow{
+  display:flex;align-items:center;gap:5px;
+  padding:6px 14px;border-bottom:1px solid var(--border);
+  background:var(--s1);
+}
+.tagL1Input,.tagL2Input{
+  flex:1;min-width:60px;max-width:160px;
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:10px;padding:3px 9px;
+  font-size:12px;color:var(--text);outline:none;
+}
+.tagL1Input:focus,.tagL2Input:focus{border-color:#555}
+.tagL2Input:disabled{opacity:.35;cursor:not-allowed}
+.tagAddSep{opacity:.3;font-size:13px;flex-shrink:0;user-select:none}
+.tagAddBtn{
+  padding:2px 10px;border-radius:12px;
+  border:1px solid var(--border);background:var(--s2);
+  color:var(--text);font-size:15px;cursor:pointer;flex-shrink:0;line-height:1.4;
+}
+.tagAddBtn:hover{border-color:#555}
+.filterManageBtn{
+  background:none;border:1px solid var(--border);border-radius:14px;
+  color:var(--muted);font-size:13px;cursor:pointer;
+  padding:3px 9px;line-height:1.4;flex-shrink:0;
+  transition:color .15s,border-color .15s;
+}
+.filterManageBtn:hover{color:var(--text);border-color:#555}
+.l1Manager{
+  padding:10px 14px;border-bottom:1px solid var(--border);
+  background:var(--s1);
+}
+.l1ManagerHdr{
+  font-size:11px;color:var(--muted);letter-spacing:.04em;
+  margin-bottom:6px;text-transform:uppercase;
+}
+.l1ManageItem{
+  display:flex;align-items:center;gap:8px;
+  padding:4px 0;
+}
+.l1ManageDot{
+  width:8px;height:8px;border-radius:50%;flex-shrink:0;
+}
+.l1CustomBadge{
+  font-size:9px;padding:1px 5px;border-radius:8px;
+  background:var(--s2);border:1px solid var(--border);
+  color:var(--muted);flex-shrink:0;
+}
+.l1ManageLabel{flex:1;font-size:12px}
+.l1ManageBtn{
+  background:none;border:1px solid var(--border);border-radius:10px;
+  color:var(--muted);font-size:11px;cursor:pointer;
+  padding:1px 7px;line-height:1.5;
+  transition:color .15s,border-color .15s;
+}
+.l1ManageBtn:hover{color:var(--text);border-color:#555}
+.l1ManagerAddRow{
+  display:flex;gap:5px;margin-top:8px;flex-wrap:wrap;
+}
+.l1ManagerInput{
+  flex:1;min-width:80px;max-width:140px;
+  background:var(--s2);border:1px solid var(--border);
+  border-radius:10px;padding:3px 9px;
+  font-size:12px;color:var(--text);outline:none;
+}
+.l1ManagerInput:focus{border-color:#555}
+.suggestRow{
+  display:flex;flex-wrap:wrap;gap:5px;align-items:center;
+  padding:6px 14px 9px;border-bottom:1px solid var(--border);
+  background:var(--s1);
+}
+.sugLabel{font-size:10px;color:var(--muted);letter-spacing:.02em;flex-shrink:0}
+.sugChip{
+  padding:3px 9px;border-radius:10px;border:1px dashed #333;
+  color:var(--muted);font-size:11px;cursor:pointer;white-space:nowrap;
+  transition:border-color .15s,color .15s;
+}
+.sugChip:hover{border-color:var(--accent);color:var(--accent)}
+.cardTags{
+  position:absolute;bottom:32px;left:6px;
+  display:flex;flex-wrap:wrap;gap:3px;pointer-events:none;
+  max-width:calc(100% - 12px);
+}
+.cardTag{
+  font-size:9px;padding:2px 5px;border-radius:6px;
+  background:rgba(0,0,0,.65);color:rgba(255,255,255,.9);
+  backdrop-filter:blur(3px);white-space:nowrap;
+}
+@media(max-width:500px){
+  .albumCard .aName{font-size:11px}
+  #igPanel,#xhsPanel{max-width:100%}
+}
+/* ── XHS Import Panel ────────────────────────────────────── */
+#xhsPanel{
+  display:none;flex-direction:column;gap:12px;
+  padding:20px;background:var(--s2);border-radius:12px;
+  border:1px solid var(--border);width:100%;max-width:340px;
+  margin-top:4px;
+}
+#xhsPanel.on{display:flex}
+#xhsInput{
+  flex:1;background:var(--s1);border:1px solid var(--border);
+  color:var(--text);padding:9px 12px;border-radius:8px;font-size:14px;
+  outline:none;min-width:0;
+}
+#xhsInput::placeholder{color:var(--muted)}
+#xhsInput:focus{border-color:#ff2442}
+#xhsFetchBtn{
+  background:#ff2442;color:#fff;border:none;
+  padding:9px 16px;border-radius:8px;font-size:13px;cursor:pointer;
+  flex-shrink:0;transition:opacity .15s;
+}
+#xhsFetchBtn:hover{opacity:.85}
+/* ── 哼哼猫转换进度层 ─────────────────────────────────────── */
+#hhOverlay{
+  position:fixed;top:0;left:0;right:0;bottom:0;
+  background:rgba(0,0,0,.88);z-index:400;
+  display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;
+  padding:24px;
+}
+#hhOverlay.on{display:flex}
+#hhOverlayTitle{font-size:16px;font-weight:600;color:var(--text)}
+#hhOverlayLog{
+  width:100%;max-width:380px;max-height:220px;overflow-y:auto;
+  background:#0d0d0d;border:1px solid var(--border);border-radius:10px;
+  padding:12px 14px;font-size:12px;font-family:monospace;
+  color:#8e8e8e;line-height:1.9;
+}
+#hhOverlayLog .ok{color:#3eb489}
+#hhOverlayLog .dim{color:#444}
+#hhOverlaySub{font-size:12px;color:var(--muted)}
+</style>
+</head>
+<body>
+
+<!-- Header -->
+<div id="hdr">
+  <button class="hbtn ghost" id="btnBack" style="display:none">‹</button>
+  <div id="hdrTitle">📸 本地相册</div>
+  <button class="hbtn" id="btnViewToggle" style="display:none">九宫格</button>
+  <button class="hbtn" id="btnSort" style="display:none">↓ 倒序</button>
+  <button class="hbtn" id="btnMediaFilter" style="display:none">全部</button>
+  <select id="langSel" title="Language"></select>
+  <button class="hbtn pri" id="btnOpen">选择文件夹</button>
+</div>
+
+<!-- Welcome -->
+<div class="view on" id="vWelcome">
+  <div class="wIcon">🗂️</div>
+  <div class="wTitle">本地相册</div>
+  <div class="wDesc">以 Instagram 视角浏览本地照片<br>或直接输入 IG 用户名导入</div>
+
+  <div class="wActions">
+    <button class="wBtn" id="btnWelcomeOpen">📂 选择本地照片文件夹</button>
+    <button class="wBtnGhost" id="btnReopen" style="display:none"></button>
+    <button class="wBtnGhost" id="btnShowIG">📥 从 Instagram 导入</button>
+    <button class="wBtnGhost" id="btnHHCat">🐱 导入哼哼猫</button>
+    <button class="wBtnGhost" id="btnShowXHS">📕 从小红书导入</button>
+  </div>
+
+  <!-- 哼哼猫转换进度层 -->
+  <div id="hhOverlay">
+    <div id="hhOverlayTitle">🐱 正在转换哼哼猫文件…</div>
+    <div id="hhOverlayLog"></div>
+    <div id="hhOverlaySub"></div>
+  </div>
+
+  <!-- IG 导入面板 -->
+  <div id="igPanel">
+    <div class="igRow">
+      <input type="text" id="igInput" placeholder="输入 IG 用户名，如 natgeo" autocomplete="off" spellcheck="false">
+      <button id="igFetchBtn">生成命令</button>
+    </div>
+    <!-- 下载范围选择 -->
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div style="display:flex;gap:5px;flex-wrap:wrap" id="igCountChips">
+        <button class="igRangePreset" data-n="50">1–50</button>
+        <button class="igRangePreset" data-n="100">1–100</button>
+        <button class="igRangePreset active" data-n="200">1–200</button>
+        <button class="igRangePreset" data-n="500">1–500</button>
+        <button class="igRangePreset" data-n="1000">1–1000</button>
+        <button class="igRangePreset" data-n="" id="igCountAll">1–全部</button>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <span class="igRangeLbl" id="igCountLabel">自定上限</span>
+        <input type="number" id="igCountCustom" min="1" class="igRangeNum" style="width:90px">
+        <span class="igRangeLbl" id="igCountUnitLbl">条（留空=全部）</span>
+      </div>
+    </div>
+    <div class="igRow" style="gap:8px;align-items:center">
+      <label style="font-size:12px;color:var(--muted);white-space:nowrap" id="igOutputLabel">保存路径</label>
+      <input type="text" id="igOutput" style="flex:1;background:var(--s1);border:1px solid var(--border);color:var(--text);padding:7px 10px;border-radius:8px;font-size:13px;outline:none;min-width:0" placeholder="./downloads（默认）" autocomplete="off" spellcheck="false">
+    </div>
+
+    <!-- 第一步：安装依赖 -->
+    <div class="igStep" id="igStep1">
+      <div class="igStepLabel"><span>1</span>安装依赖（只需运行一次）</div>
+      <div class="igCmdRow">
+        <textarea class="igCmd" id="igCmd1" rows="1" readonly></textarea>
+        <button class="igCopyBtn" id="igCopy1">复制</button>
+      </div>
+    </div>
+
+    <!-- 第二步：下载 -->
+    <div class="igStep" id="igStep2">
+      <div class="igStepLabel"><span>2</span>在终端运行下载</div>
+      <div class="igCmdRow">
+        <textarea class="igCmd" id="igCmd2" rows="2" readonly></textarea>
+        <button class="igCopyBtn" id="igCopy2">复制</button>
+      </div>
+    </div>
+
+    <!-- 第三步：打开文件夹 -->
+    <div class="igStep" id="igStep3">
+      <div class="igStepLabel"><span>3</span>下载完成后</div>
+      <div class="igNote" id="igStep3Note">点「选择本地照片文件夹」→ 选中 <b>downloads/<span id="igUserDisplay"></span></b> 目录</div>
+    </div>
+  </div>
+
+  <!-- XHS 导入面板 -->
+  <div id="xhsPanel">
+    <div class="igRow">
+      <input type="text" id="xhsInput" placeholder="用户主页 URL 或 user_id" autocomplete="off" spellcheck="false">
+      <button id="xhsFetchBtn">生成命令</button>
+    </div>
+
+    <!-- 第一步：安装依赖 -->
+    <div class="igStep" id="xhsStep1">
+      <div class="igStepLabel"><span>1</span>安装依赖（只需运行一次）</div>
+      <div class="igCmdRow">
+        <textarea class="igCmd" id="xhsCmd1" rows="1" readonly></textarea>
+        <button class="igCopyBtn" id="xhsCopy1">复制</button>
+      </div>
+    </div>
+
+    <!-- 第二步：下载 -->
+    <div class="igStep" id="xhsStep2">
+      <div class="igStepLabel"><span>2</span>在终端运行（会提示粘贴 Cookie）</div>
+      <div class="igCmdRow">
+        <textarea class="igCmd" id="xhsCmd2" rows="2" readonly></textarea>
+        <button class="igCopyBtn" id="xhsCopy2">复制</button>
+      </div>
+    </div>
+
+    <!-- 第三步：打开文件夹 -->
+    <div class="igStep" id="xhsStep3">
+      <div class="igStepLabel"><span>3</span>下载完成后</div>
+      <div class="igNote">点「选择本地照片文件夹」→ 选中 <b>downloads/<span id="xhsUserDisplay"></span></b> 目录</div>
+    </div>
+  </div>
+
+  <div class="wNote" id="compatNote">需要 Chrome 或 Edge 浏览器 · 所有数据仅在本地存储</div>
+</div>
+
+<!-- Home grid -->
+<div class="view" id="vHome"></div>
+
+<!-- Album feed -->
+<div class="view" id="vAlbum"></div>
+
+<!-- Lightbox -->
+<div class="view" id="vLB">
+  <div class="lbHdr">
+    <button class="hbtn ghost" id="btnLBBack">‹</button>
+    <span class="lbCounter" id="lbCounter"></span>
+    <div class="lbHdrRight">
+      <span class="lbLoc" id="lbLoc" style="display:none">📍 <span id="lbLocTxt"></span></span>
+      <span class="lbDate" id="lbDate"></span>
+      <a class="lbIgLink" id="lbIgLink" href="#" target="_blank" style="display:none">↗ IG</a>
+    </div>
+  </div>
+  <div class="lbImgArea">
+    <img id="lbImg" src="" alt="">
+    <video id="lbVideo" controls playsinline style="display:none"></video>
+    <button class="lbNav l" id="lbPrev">‹</button>
+    <button class="lbNav r" id="lbNext">›</button>
+  </div>
+  <div class="lbFoot">
+    <textarea class="lbCaption" id="lbCaption" rows="2" placeholder="写下这张照片的故事…"></textarea>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script>
+'use strict';
+const IMG_EXT = /\.(jpe?g|jpg|png|webp|heic|heif|gif|avif|bmp)$/i;
+const VIDEO_EXT = /\.(mp4|mov|webm|m4v)$/i;
+const STORE_KEY = 'local-ig-v1';
+const L2_UNCLASSIFIED = '/__unclassified__'; // 虚拟 L2 key：有 L1 但无该 L1 下任何 L2
+
+// ── 國家關鍵字庫（多語言）────────────────────────────────────────────────────
+// 每個 entry：{ 'zh-TW':顯示名, 'zh-CN':..., en:..., ja:..., ko:..., th:..., kw:[偵測關鍵字] }
+const COUNTRY_MAP = [
+  {'zh-TW':'🇯🇵 日本','zh-CN':'🇯🇵 日本','en':'🇯🇵 Japan','ja':'🇯🇵 日本','ko':'🇯🇵 일본','th':'🇯🇵 ญี่ปุ่น',
+   kw:['japan','日本','tokyo','東京','osaka','大阪','kyoto','京都','sapporo','札幌','fukuoka','福岡','nara','奈良','hiroshima','廣島','okinawa','沖繩','nagoya','名古屋']},
+  {'zh-TW':'🇰🇷 韓國','zh-CN':'🇰🇷 韩国','en':'🇰🇷 South Korea','ja':'🇰🇷 韓国','ko':'🇰🇷 한국','th':'🇰🇷 เกาหลีใต้',
+   kw:['korea','韓國','한국','seoul','首爾','busan','釜山','jeju','濟州','incheon','仁川']},
+  {'zh-TW':'🇹🇼 台灣','zh-CN':'🇹🇼 台湾','en':'🇹🇼 Taiwan','ja':'🇹🇼 台湾','ko':'🇹🇼 대만','th':'🇹🇼 ไต้หวัน',
+   kw:['taiwan','台灣','台湾','taipei','台北','tainan','台南','kaohsiung','高雄','hualien','花蓮','taichung','台中']},
+  {'zh-TW':'🇹🇭 泰國','zh-CN':'🇹🇭 泰国','en':'🇹🇭 Thailand','ja':'🇹🇭 タイ','ko':'🇹🇭 태국','th':'🇹🇭 ไทย',
+   kw:['thailand','泰國','泰国','bangkok','曼谷','phuket','普吉','chiang mai','清邁','pattaya','芭提雅','koh samui']},
+  {'zh-TW':'🇺🇸 美國','zh-CN':'🇺🇸 美国','en':'🇺🇸 USA','ja':'🇺🇸 アメリカ','ko':'🇺🇸 미국','th':'🇺🇸 สหรัฐอเมริกา',
+   kw:['usa','united states','america','美國','美国','new york','紐約','los angeles','san francisco','chicago','miami','hawaii','夏威夷','las vegas','boston','seattle']},
+  {'zh-TW':'🇫🇷 法國','zh-CN':'🇫🇷 法国','en':'🇫🇷 France','ja':'🇫🇷 フランス','ko':'🇫🇷 프랑스','th':'🇫🇷 ฝรั่งเศส',
+   kw:['france','法國','法国','paris','巴黎','lyon','nice','尼斯','marseille','bordeaux']},
+  {'zh-TW':'🇮🇹 義大利','zh-CN':'🇮🇹 意大利','en':'🇮🇹 Italy','ja':'🇮🇹 イタリア','ko':'🇮🇹 이탈리아','th':'🇮🇹 อิตาลี',
+   kw:['italy','italia','義大利','意大利','rome','羅馬','milan','米蘭','venice','威尼斯','florence','佛羅倫斯','naples','amalfi']},
+  {'zh-TW':'🇬🇧 英國','zh-CN':'🇬🇧 英国','en':'🇬🇧 UK','ja':'🇬🇧 イギリス','ko':'🇬🇧 영국','th':'🇬🇧 สหราชอาณาจักร',
+   kw:['uk','england','britain','英國','英国','london','倫敦','edinburgh','愛丁堡','manchester','oxford']},
+  {'zh-TW':'🇩🇪 德國','zh-CN':'🇩🇪 德国','en':'🇩🇪 Germany','ja':'🇩🇪 ドイツ','ko':'🇩🇪 독일','th':'🇩🇪 เยอรมนี',
+   kw:['germany','德國','德国','berlin','柏林','munich','慕尼黑','hamburg','frankfurt','cologne']},
+  {'zh-TW':'🇦🇺 澳洲','zh-CN':'🇦🇺 澳大利亚','en':'🇦🇺 Australia','ja':'🇦🇺 オーストラリア','ko':'🇦🇺 호주','th':'🇦🇺 ออสเตรเลีย',
+   kw:['australia','澳洲','澳大利亚','sydney','雪梨','melbourne','墨爾本','perth','brisbane','gold coast','黃金海岸']},
+  {'zh-TW':'🇭🇰 香港','zh-CN':'🇭🇰 香港','en':'🇭🇰 Hong Kong','ja':'🇭🇰 香港','ko':'🇭🇰 홍콩','th':'🇭🇰 ฮ่องกง',
+   kw:['hong kong','香港','hk']},
+  {'zh-TW':'🇨🇳 中國','zh-CN':'🇨🇳 中国','en':'🇨🇳 China','ja':'🇨🇳 中国','ko':'🇨🇳 중국','th':'🇨🇳 จีน',
+   kw:['china','中國','中国','beijing','北京','shanghai','上海','guangzhou','廣州','shenzhen','深圳','chengdu','成都','hangzhou','杭州']},
+  {'zh-TW':'🇸🇬 新加坡','zh-CN':'🇸🇬 新加坡','en':'🇸🇬 Singapore','ja':'🇸🇬 シンガポール','ko':'🇸🇬 싱가포르','th':'🇸🇬 สิงคโปร์',
+   kw:['singapore','新加坡']},
+  {'zh-TW':'🇲🇾 馬來西亞','zh-CN':'🇲🇾 马来西亚','en':'🇲🇾 Malaysia','ja':'🇲🇾 マレーシア','ko':'🇲🇾 말레이시아','th':'🇲🇾 มาเลเซีย',
+   kw:['malaysia','馬來西亞','马来西亚','kuala lumpur','吉隆坡','penang','檳城','malacca','馬六甲']},
+  {'zh-TW':'🇮🇩 印尼','zh-CN':'🇮🇩 印度尼西亚','en':'🇮🇩 Indonesia','ja':'🇮🇩 インドネシア','ko':'🇮🇩 인도네시아','th':'🇮🇩 อินโดนีเซีย',
+   kw:['indonesia','印尼','bali','巴厘島','峇里島','jakarta','雅加達','lombok']},
+  {'zh-TW':'🇵🇭 菲律賓','zh-CN':'🇵🇭 菲律宾','en':'🇵🇭 Philippines','ja':'🇵🇭 フィリピン','ko':'🇵🇭 필리핀','th':'🇵🇭 ฟิลิปปินส์',
+   kw:['philippines','菲律賓','菲律宾','manila','cebu','宿霧','palawan','巴拉望']},
+  {'zh-TW':'🇻🇳 越南','zh-CN':'🇻🇳 越南','en':'🇻🇳 Vietnam','ja':'🇻🇳 ベトナム','ko':'🇻🇳 베트남','th':'🇻🇳 เวียดนาม',
+   kw:['vietnam','越南','hanoi','河內','ho chi minh','胡志明','da nang','峴港','hoi an','會安']},
+  {'zh-TW':'🇪🇸 西班牙','zh-CN':'🇪🇸 西班牙','en':'🇪🇸 Spain','ja':'🇪🇸 スペイン','ko':'🇪🇸 스페인','th':'🇪🇸 สเปน',
+   kw:['spain','西班牙','barcelona','巴塞羅那','madrid','馬德里','seville','ibiza','伊比薩']},
+  {'zh-TW':'🇵🇹 葡萄牙','zh-CN':'🇵🇹 葡萄牙','en':'🇵🇹 Portugal','ja':'🇵🇹 ポルトガル','ko':'🇵🇹 포르투갈','th':'🇵🇹 โปรตุเกส',
+   kw:['portugal','葡萄牙','lisbon','里斯本','porto','波爾圖']},
+  {'zh-TW':'🇬🇷 希臘','zh-CN':'🇬🇷 希腊','en':'🇬🇷 Greece','ja':'🇬🇷 ギリシャ','ko':'🇬🇷 그리스','th':'🇬🇷 กรีซ',
+   kw:['greece','希臘','希腊','athens','雅典','santorini','聖托里尼','mykonos','米科諾斯']},
+  {'zh-TW':'🇹🇷 土耳其','zh-CN':'🇹🇷 土耳其','en':'🇹🇷 Turkey','ja':'🇹🇷 トルコ','ko':'🇹🇷 튀르키예','th':'🇹🇷 ตุรกี',
+   kw:['turkey','土耳其','istanbul','伊斯坦堡','cappadocia','卡帕多奇亞']},
+  {'zh-TW':'🇮🇳 印度','zh-CN':'🇮🇳 印度','en':'🇮🇳 India','ja':'🇮🇳 インド','ko':'🇮🇳 인도','th':'🇮🇳 อินเดีย',
+   kw:['india','印度','mumbai','孟買','delhi','德里','goa','果阿','jaipur','齋浦爾']},
+  {'zh-TW':'🇨🇭 瑞士','zh-CN':'🇨🇭 瑞士','en':'🇨🇭 Switzerland','ja':'🇨🇭 スイス','ko':'🇨🇭 스위스','th':'🇨🇭 สวิตเซอร์แลนด์',
+   kw:['switzerland','瑞士','zurich','蘇黎世','geneva','日內瓦','interlaken','因特拉肯']},
+  {'zh-TW':'🇦🇹 奧地利','zh-CN':'🇦🇹 奥地利','en':'🇦🇹 Austria','ja':'🇦🇹 オーストリア','ko':'🇦🇹 오스트리아','th':'🇦🇹 ออสเตรีย',
+   kw:['austria','奧地利','奥地利','vienna','維也納','salzburg','薩爾茨堡']},
+  {'zh-TW':'🇳🇱 荷蘭','zh-CN':'🇳🇱 荷兰','en':'🇳🇱 Netherlands','ja':'🇳🇱 オランダ','ko':'🇳🇱 네덜란드','th':'🇳🇱 เนเธอร์แลนด์',
+   kw:['netherlands','荷蘭','荷兰','amsterdam','阿姆斯特丹']},
+  {'zh-TW':'🇨🇿 捷克','zh-CN':'🇨🇿 捷克','en':'🇨🇿 Czech Republic','ja':'🇨🇿 チェコ','ko':'🇨🇿 체코','th':'🇨🇿 สาธารณรัฐเช็ก',
+   kw:['czech','捷克','prague','布拉格']},
+  {'zh-TW':'🇲🇽 墨西哥','zh-CN':'🇲🇽 墨西哥','en':'🇲🇽 Mexico','ja':'🇲🇽 メキシコ','ko':'🇲🇽 멕시코','th':'🇲🇽 เม็กซิโก',
+   kw:['mexico','墨西哥','cancun','坎昆','mexico city','墨西哥城']},
+  {'zh-TW':'🇧🇷 巴西','zh-CN':'🇧🇷 巴西','en':'🇧🇷 Brazil','ja':'🇧🇷 ブラジル','ko':'🇧🇷 브라질','th':'🇧🇷 บราซิล',
+   kw:['brazil','巴西','rio','里約','sao paulo','聖保羅']},
+  {'zh-TW':'🇲🇦 摩洛哥','zh-CN':'🇲🇦 摩洛哥','en':'🇲🇦 Morocco','ja':'🇲🇦 モロッコ','ko':'🇲🇦 모로코','th':'🇲🇦 โมร็อกโก',
+   kw:['morocco','摩洛哥','marrakech','馬拉喀什']},
+  {'zh-TW':'🇿🇦 南非','zh-CN':'🇿🇦 南非','en':'🇿🇦 South Africa','ja':'🇿🇦 南アフリカ','ko':'🇿🇦 남아프리카','th':'🇿🇦 แอฟริกาใต้',
+   kw:['south africa','南非','cape town','開普敦']},
+  {'zh-TW':'🇮🇸 冰島','zh-CN':'🇮🇸 冰岛','en':'🇮🇸 Iceland','ja':'🇮🇸 アイスランド','ko':'🇮🇸 아이슬란드','th':'🇮🇸 ไอซ์แลนด์',
+   kw:['iceland','冰島','冰岛','reykjavik','雷克雅維克']},
+  {'zh-TW':'🇳🇴 挪威','zh-CN':'🇳🇴 挪威','en':'🇳🇴 Norway','ja':'🇳🇴 ノルウェー','ko':'🇳🇴 노르웨이','th':'🇳🇴 นอร์เวย์',
+   kw:['norway','挪威','oslo','奧斯陸','bergen','卑爾根','fjord','峽灣']},
+  {'zh-TW':'🇸🇪 瑞典','zh-CN':'🇸🇪 瑞典','en':'🇸🇪 Sweden','ja':'🇸🇪 スウェーデン','ko':'🇸🇪 스웨덴','th':'🇸🇪 สวีเดน',
+   kw:['sweden','瑞典','stockholm','斯德哥爾摩']},
+  {'zh-TW':'🇩🇰 丹麥','zh-CN':'🇩🇰 丹麦','en':'🇩🇰 Denmark','ja':'🇩🇰 デンマーク','ko':'🇩🇰 덴마크','th':'🇩🇰 เดนมาร์ก',
+   kw:['denmark','丹麥','丹麦','copenhagen','哥本哈根']},
+  {'zh-TW':'🇵🇱 波蘭','zh-CN':'🇵🇱 波兰','en':'🇵🇱 Poland','ja':'🇵🇱 ポーランド','ko':'🇵🇱 폴란드','th':'🇵🇱 โปแลนด์',
+   kw:['poland','波蘭','波兰','warsaw','華沙','krakow','克拉科夫']},
+  {'zh-TW':'🇦🇷 阿根廷','zh-CN':'🇦🇷 阿根廷','en':'🇦🇷 Argentina','ja':'🇦🇷 アルゼンチン','ko':'🇦🇷 아르헨티나','th':'🇦🇷 อาร์เจนตินา',
+   kw:['argentina','阿根廷','buenos aires','布宜諾斯艾利斯','patagonia','巴塔哥尼亞']},
+];
+
+// ── 兩級標簽層次（L1 + L2 子項）────────────────────────────────────────────
+const TAG_HIERARCHY = [
+  { l1:{zh:'💼 辦公',en:'💼 Work',th:'💼 งาน',ja:'💼 仕事',ko:'💼 업무'},
+    kw:['office','辦公','办公','工作','會議','会议','meeting','conference','business','出差','職場','职场','商務','商务','boardroom'],
+    _alwaysShowArrow:true },
+
+  { l1:{zh:'✨ 逼格',en:'✨ Aesthetic',th:'✨ สไตล์',ja:'✨ おしゃれ',ko:'✨ 감성'},
+    kw:['aesthetic','文青','lifestyle','攝影','摄影','photography','portrait','穿搭','ootd','fashion','時尚','时尚','lookbook','街拍','藝術','艺术','art','gallery','展覽','展览','museum','博物館','博物馆'],
+    _alwaysShowArrow:true },
+
+  { l1:{zh:'👨‍👩‍👧 家人',en:'👨‍👩‍👧 Family',th:'👨‍👩‍👧 ครอบครัว',ja:'👨‍👩‍👧 家族',ko:'👨‍👩‍👧 가족'},
+    kw:['家人','family','老婆','老公','孩子','小孩','親子','亲子','媽媽','妈妈','爸爸','寶寶','宝宝','爺爺','奶奶','外公','外婆','grandma','grandpa','dad','mom','kids','baby'],
+    _alwaysShowArrow:true },
+
+  { l1:{zh:'🎉 節日',en:'🎉 Festival',th:'🎉 เทศกาล',ja:'🎉 記念日',ko:'🎉 기념일'},
+    kw:['節日','节日','假日','holiday','celebration','慶祝','庆祝'],
+    children:[
+      {l2:{zh:'生日',en:'Birthday',th:'วันเกิด',ja:'誕生日',ko:'생일'},kw:['生日','birthday','happy birthday','hbd']},
+      {l2:{zh:'聖誕',en:'Christmas',th:'คริสต์มาส',ja:'クリスマス',ko:'크리스마스'},kw:['christmas','聖誕','圣诞','xmas']},
+      {l2:{zh:'新年',en:'New Year',th:'ปีใหม่',ja:'新年',ko:'새해'},kw:['new year','新年','春節','春节','元旦']},
+      {l2:{zh:'中秋',en:'Mid-Autumn',th:'ไหว้พระจันทร์',ja:'中秋',ko:'추석'},kw:['中秋','moon festival','月餅','月饼']},
+      {l2:{zh:'情人節',en:"Valentine's",th:'วาเลนไทน์',ja:'バレンタイン',ko:'발렌타인'},kw:["valentine","情人節","情人节"]},
+      {l2:{zh:'婚禮',en:'Wedding',th:'งานแต่งงาน',ja:'結婚式',ko:'결혼식'},kw:['wedding','婚禮','婚礼','結婚','结婚','anniversary','紀念','纪念']},
+    ]
+  },
+
+  { l1:{zh:'🏠 居家',en:'🏠 Home',th:'🏠 ในบ้าน',ja:'🏠 おうち',ko:'🏠 홈'},
+    kw:['居家','室內','室内','家裡','家里','廚房','厨房','客廳','客厅','臥室','卧室','料理','自煮','cooking','baking','烘焙','家居','佈置','布置','interior'] },
+
+  { l1:{zh:'✈️ 旅行',en:'✈️ Travel',th:'✈️ ท่องเที่ยว',ja:'✈️ 旅行',ko:'✈️ 여행'},
+    kw:['旅行','旅遊','旅游','trip','travel','vacation','出發','出发','景點','景点','觀光','观光','tour','journey'],
+    _useCountryMap:true
+  },
+
+  { l1:{zh:'🌆 周末-城市',en:'🌆 Weekend-City',th:'🌆 วีคเอนด์',ja:'🌆 週末・都市',ko:'🌆 주말-도시'},
+    kw:[],
+    children:[
+      {l2:{zh:'吃喝',en:'Dining',th:'กินดื่ม',ja:'グルメ',ko:'맛집'},kw:['餐廳','餐厅','美食','food','eat','restaurant','cafe','咖啡','brunch','dinner','lunch','breakfast','dessert','甜點','甜点','燒肉','烧肉','火鍋','火锅','omakase','飲食','饮食','下午茶','afternoon tea']},
+      {l2:{zh:'玩樂',en:'Entertainment',th:'ความบันเทิง',ja:'エンタメ',ko:'놀이'},kw:['演唱會','演唱会','concert','music','音樂','音乐','購物','购物','shopping','mall','電影','电影','movie','ktv','夜市','逛街','nightlife','park','公園','公园','遊樂','游乐','bar','酒吧']},
+      {l2:{zh:'運動',en:'Sports',th:'ออกกำลังกาย',ja:'スポーツ',ko:'운동'},kw:['gym','健身','workout','exercise','run','跑步','yoga','瑜伽','swimming','游泳','cycling','單車','单车','pilates','training','訓練','训练']},
+    ]
+  },
+
+  { l1:{zh:'🌲 周末-山海',en:'🌲 Weekend-Nature',th:'🌲 ธรรมชาติ',ja:'🌲 週末・自然',ko:'🌲 주말-자연'},
+    kw:['登山','爬山','hiking','mountain','trail','步道','trek','outdoor','戶外','户外','camping','露營','露营','自然','nature','森林','forest','lake','湖','river','河','waterfall','瀑布','海邊','海边','海灘','海滩','beach','island','surf','浮潛','浮潜','snorkel','diving','潛水','潜水','農場','农场'],
+    _useLocationAsL2:true, _alwaysShowArrow:true
+  },
+];
+
+// ── 快速標籤（多語言）────────────────────────────────────────────────────────
+const QUICK_TAG_DATA = [
+  {'zh-TW':'📸 自拍','zh-CN':'📸 自拍','en':'📸 Selfie','ja':'📸 自撮り','ko':'📸 셀카','th':'📸 เซลฟี่'},
+  {'zh-TW':'👥 合照','zh-CN':'👥 合照','en':'👥 Group Photo','ja':'👥 集合写真','ko':'👥 단체사진','th':'👥 รูปหมู่'},
+  {'zh-TW':'🐾 毛孩','zh-CN':'🐾 毛孩','en':'🐾 Pets','ja':'🐾 ペット','ko':'🐾 반려동물','th':'🐾 สัตว์เลี้ยง'},
+];
+function getQuickTags(){ return QUICK_TAG_DATA.map(e=>e[currentLang]||e['en']); }
+
+// 從 entry 取得當前語言顯示名
+function tagName(e){
+  if(currentLang==='zh-TW'||currentLang==='zh-CN') return e.zh||e['zh-TW']||e['zh-CN']||e.en;
+  return e[currentLang]||e.en;
+}
+
+// 收集某個 entry 在所有語言下的可能顯示名（用於跨語言識別）
+function allTagNames(e){
+  const s=new Set();
+  for(const code of Object.keys(LANGS)){
+    const v=(code==='zh-TW'||code==='zh-CN')
+      ?(e.zh||e['zh-TW']||e['zh-CN']||e.en)
+      :(e[code]||e.en);
+    if(v) s.add(v);
+  }
+  return s;
+}
+
+// 將單個 tag 字串從任意語言翻譯為 currentLang
+// 不認識的標簽（用戶自定義）原樣保留
+function translateTag(tag){
+  // 先檢查 QUICK_TAG_DATA（📸 自拍 / 👥 合照 / 🐾 毛孩）
+  const quick=QUICK_TAG_DATA.find(e=>Object.values(e).includes(tag));
+  if(quick) return quick[currentLang]||quick.en||tag;
+
+  const slash=tag.indexOf('/');
+  const l1Str=slash===-1?tag:tag.slice(0,slash);
+  const l2Str=slash===-1?null:tag.slice(slash+1);
+  const group=getEffectiveHierarchy().find(g=>allTagNames(g.l1).has(l1Str));
+  if(!group) return tag;
+  const newL1=tagName(group.l1);
+  if(!l2Str) return newL1;
+  const child=(group.children||[]).find(c=>allTagNames(c.l2).has(l2Str));
+  if(child) return `${newL1}/${tagName(child.l2)}`;
+  if(group._useCountryMap){
+    const entry=COUNTRY_MAP.find(e=>allTagNames(e).has(l2Str));
+    if(entry) return `${newL1}/${tagName(entry)}`;
+  }
+  return `${newL1}/${l2Str}`; // 位置類 L2 保留原文，只更新 L1 前綴
+}
+
+// ── L1 配置（localStorage 持久化）────────────────────────────────────────────
+const TAG_CFG_KEY='local-ig-tagcfg';
+function loadTagConfig(){
+  try{return JSON.parse(localStorage.getItem(TAG_CFG_KEY))||{hidden:[],custom:[]};}
+  catch{return{hidden:[],custom:[]};}
+}
+function saveTagConfig(cfg){localStorage.setItem(TAG_CFG_KEY,JSON.stringify(cfg));}
+
+// 有效 hierarchy = 預設（去除隱藏） + 用戶自定義
+function getEffectiveHierarchy(){
+  const cfg=loadTagConfig();
+  const hiddenSet=new Set(cfg.hidden||[]);
+  const base=TAG_HIERARCHY.filter(g=>!hiddenSet.has(tagName(g.l1)));
+  const custom=(cfg.custom||[]).map(c=>({
+    l1:{zh:c.name,en:c.name,th:c.name,ja:c.name,ko:c.name},
+    kw:c.kw||[], _custom:true,
+  }));
+  return [...base,...custom];
+}
+
+// ── i18n ──────────────────────────────────────────────────────────────────
+const LANGS = {
+  'zh-TW':{name:'繁中', locale:'zh-TW',
+    appName:'本地相冊', desc:'以 Instagram 視角瀏覽本地照片\n或直接輸入 IG 用戶名導入',
+    openFolder:'📂 選擇本地照片資料夾', fromIG:'📥 從 Instagram 導入',
+    note:'需要 Chrome 或 Edge 瀏覽器 · 所有資料僅在本地儲存',
+    compatError:'⚠️ 請改用 Chrome 或 Edge',
+    igPlaceholder:'輸入 IG 用戶名，如 natgeo', igGenerate:'生成指令',
+    igCount:'自訂上限', igCountUnit:'條', igCountHint:'（留空＝全部）', igCountAll:'全部（可能較慢）',
+    igModeCount:'數量', igModeRange:'範圍', igRangeFrom:'第', igRangeTo:'至',
+    igTotalLabel:'帳號總帖數', igPresetHint:'輸入總帖數後自動生成分段',
+    igOutput:'儲存路徑', igOutputPlaceholder:'./downloads（預設）',
+    igStep1:'安裝依賴（只需執行一次）', igStepCheck:'查詢帖數並選擇範圍', igStep2:'在終端機執行下載',
+    igTotalLabel2:'執行後輸入帖數',
+    igStep3:'下載完成後', igStep3Note:'點「選擇本地照片資料夾」→ 選中 {path} 目錄',
+    copy:'複製', copied:'✓ 已複製',
+    albumTitle:'相冊名稱', albumDesc:'寫下這段旅程的故事…',
+    photoCaption:'寫下這張照片的故事…',
+    igLink:'↗ 查看 IG 原帖', igLinkShort:'↗ IG', igBadge:'IG',
+    noPhotos:'沒有找到照片', loading:'讀取照片中，請稍候…',
+    fromIGBadge:'· 來自 Instagram', videoTag:'▶ 影片',
+    photoCount:n=>`${n} 張照片`,
+    gridView:'九宮格', feedView:'Feed',
+    toastCopied:'指令已複製', toastChrome:'請使用 Chrome 或 Edge',
+    toastNoFolder:'未選擇資料夾', toastReadFail:'讀取失敗：',
+    viewFile:'🔗 查看', copyPath:'📋 複製路徑', openDir:'📂 打開資料夾',
+    pathCopied:'✓ 路徑已複製', pathUnknown:'⚠️ 尚未設定儲存路徑',
+    folderCopied:'📂 路徑已複製 → 貼到資源管理員地址列',
+    reopenFolder:name=>`📂 重新開啟：${name}`,
+    locationPh:'添加地點…', filterAll:'全部', filterUntagged:'⬜ 未分類', tagPh:'新增標籤…', tagSuggest:'建議', noTagResult:'無符合相簿',
+  },
+  'zh-CN':{name:'简中', locale:'zh-CN',
+    appName:'本地相册', desc:'以 Instagram 视角浏览本地照片\n或直接输入 IG 用户名导入',
+    openFolder:'📂 选择本地照片文件夹', fromIG:'📥 从 Instagram 导入',
+    note:'需要 Chrome 或 Edge 浏览器 · 所有数据仅在本地存储',
+    compatError:'⚠️ 请改用 Chrome 或 Edge',
+    igPlaceholder:'输入 IG 用户名，如 natgeo', igGenerate:'生成命令',
+    igCount:'自定上限', igCountUnit:'条', igCountHint:'（留空=全部）', igCountAll:'全部（可能较慢）',
+    igModeCount:'数量', igModeRange:'范围', igRangeFrom:'第', igRangeTo:'至',
+    igTotalLabel:'账号总帖数', igPresetHint:'输入总帖数后自动生成分段',
+    igOutput:'保存路径', igOutputPlaceholder:'./downloads（默认）',
+    igStep1:'安装依赖（只需运行一次）', igStepCheck:'查询帖数并选择范围', igStep2:'在终端运行下载',
+    igTotalLabel2:'运行后输入帖数',
+    igStep3:'下载完成后', igStep3Note:'点「选择本地照片文件夹」→ 选中 {path} 目录',
+    copy:'复制', copied:'✓ 已复制',
+    albumTitle:'相册名称', albumDesc:'写下这段旅程的故事…',
+    photoCaption:'写下这张照片的故事…',
+    igLink:'↗ 查看 IG 原帖', igLinkShort:'↗ IG', igBadge:'IG',
+    noPhotos:'没有找到照片', loading:'读取照片中，请稍候…',
+    fromIGBadge:'· 来自 Instagram', videoTag:'▶ 影片',
+    photoCount:n=>`${n} 张照片`,
+    gridView:'九宫格', feedView:'Feed',
+    toastCopied:'命令已复制', toastChrome:'请使用 Chrome 或 Edge',
+    toastNoFolder:'未选择文件夹', toastReadFail:'读取失败：',
+    viewFile:'🔗 查看', copyPath:'📋 复制路径', openDir:'📂 打开文件夹',
+    pathCopied:'✓ 路径已复制', pathUnknown:'⚠️ 尚未设置保存路径',
+    folderCopied:'📂 路径已复制 → 粘贴到资源管理器地址栏',
+    reopenFolder:name=>`📂 重新打开：${name}`,
+    locationPh:'添加地点…', filterAll:'全部', filterUntagged:'⬜ 未分类', tagPh:'新增标签…', tagSuggest:'建议', noTagResult:'无符合相册',
+  },
+  'en':{name:'EN', locale:'en',
+    appName:'Local Gallery', desc:'Browse local photos in Instagram style\nor import directly from an IG account',
+    openFolder:'📂 Choose Photo Folder', fromIG:'📥 Import from Instagram',
+    note:'Requires Chrome or Edge · All data stays on your device',
+    compatError:'⚠️ Please use Chrome or Edge',
+    igPlaceholder:'Enter IG username, e.g. natgeo', igGenerate:'Generate Commands',
+    igCount:'Custom limit', igCountUnit:'posts', igCountHint:'(empty = all)', igCountAll:'All (may be slow)',
+    igModeCount:'Count', igModeRange:'Range', igRangeFrom:'Posts', igRangeTo:'to',
+    igTotalLabel:'Total posts', igPresetHint:'Enter total to generate segments',
+    igOutput:'Save path', igOutputPlaceholder:'./downloads (default)',
+    igStep1:'Install dependencies (one-time only)', igStepCheck:'Check count & select range', igStep2:'Run download in terminal',
+    igTotalLabel2:'Enter count from output',
+    igStep3:'After download completes', igStep3Note:'Click "Choose Photo Folder" → select {path}',
+    copy:'Copy', copied:'✓ Copied',
+    albumTitle:'Album name', albumDesc:'Write the story of this journey…',
+    photoCaption:'Write the story of this photo…',
+    igLink:'↗ View on Instagram', igLinkShort:'↗ IG', igBadge:'IG',
+    noPhotos:'No photos found', loading:'Loading photos, please wait…',
+    fromIGBadge:'· from Instagram', videoTag:'▶ Video',
+    photoCount:n=>`${n} photo${n===1?'':'s'}`,
+    gridView:'Grid', feedView:'Feed',
+    toastCopied:'Command copied', toastChrome:'Please use Chrome or Edge',
+    toastNoFolder:'No folder selected', toastReadFail:'Read failed: ',
+    viewFile:'🔗 View', copyPath:'📋 Copy Path', openDir:'📂 Open Folder',
+    pathCopied:'✓ Path copied', pathUnknown:'⚠️ Output path not set',
+    folderCopied:'📂 Path copied → paste in File Explorer address bar',
+    reopenFolder:name=>`📂 Reopen: ${name}`,
+    locationPh:'Add location…', filterAll:'All', filterUntagged:'⬜ Untagged', tagPh:'Add tag…', tagSuggest:'Suggestions', noTagResult:'No matching albums',
+  },
+  'th':{name:'ไทย', locale:'th',
+    appName:'แกลเลอรี่', desc:'เรียกดูรูปภาพแบบ Instagram\nหรือนำเข้าจากบัญชี IG',
+    openFolder:'📂 เลือกโฟลเดอร์รูปภาพ', fromIG:'📥 นำเข้าจาก Instagram',
+    note:'ต้องใช้ Chrome หรือ Edge · ข้อมูลทั้งหมดเก็บในเครื่อง',
+    compatError:'⚠️ กรุณาใช้ Chrome หรือ Edge',
+    igPlaceholder:'ใส่ชื่อผู้ใช้ IG เช่น natgeo', igGenerate:'สร้างคำสั่ง',
+    igCount:'กำหนดจำนวน', igCountUnit:'โพสต์', igCountHint:'(ว่าง = ทั้งหมด)', igCountAll:'ทั้งหมด (อาจช้า)',
+    igModeCount:'จำนวน', igModeRange:'ช่วง', igRangeFrom:'จาก', igRangeTo:'ถึง',
+    igTotalLabel:'จำนวนโพสต์ทั้งหมด', igPresetHint:'ใส่จำนวนทั้งหมดเพื่อสร้างช่วง',
+    igOutput:'โฟลเดอร์บันทึก', igOutputPlaceholder:'./downloads (ค่าเริ่มต้น)',
+    igStep1:'ติดตั้ง dependencies (ครั้งเดียว)', igStepCheck:'ตรวจสอบจำนวนและเลือกช่วง', igStep2:'รันในเทอร์มินัล',
+    igTotalLabel2:'ใส่จำนวนหลังรัน',
+    igStep3:'หลังดาวน์โหลดเสร็จ', igStep3Note:'คลิก "เลือกโฟลเดอร์รูปภาพ" → เลือก {path}',
+    copy:'คัดลอก', copied:'✓ คัดลอกแล้ว',
+    albumTitle:'ชื่ออัลบั้ม', albumDesc:'เขียนเรื่องราวของการเดินทาง…',
+    photoCaption:'เขียนเรื่องราวของภาพนี้…',
+    igLink:'↗ ดูบน Instagram', igLinkShort:'↗ IG', igBadge:'IG',
+    noPhotos:'ไม่พบรูปภาพ', loading:'กำลังโหลดรูปภาพ…',
+    fromIGBadge:'· จาก Instagram', videoTag:'▶ วิดีโอ',
+    photoCount:n=>`${n} รูป`,
+    gridView:'กริด', feedView:'ฟีด',
+    toastCopied:'คัดลอกคำสั่งแล้ว', toastChrome:'กรุณาใช้ Chrome หรือ Edge',
+    toastNoFolder:'ยังไม่ได้เลือกโฟลเดอร์', toastReadFail:'โหลดล้มเหลว: ',
+    viewFile:'🔗 ดู', copyPath:'📋 คัดลอกเส้นทาง', openDir:'📂 เปิดโฟลเดอร์',
+    pathCopied:'✓ คัดลอกเส้นทางแล้ว', pathUnknown:'⚠️ ยังไม่ได้ตั้งค่าเส้นทาง',
+    folderCopied:'📂 คัดลอกเส้นทางแล้ว → วางใน File Explorer',
+    reopenFolder:name=>`📂 เปิดอีกครั้ง: ${name}`,
+    locationPh:'เพิ่มสถานที่…', filterAll:'ทั้งหมด', filterUntagged:'⬜ ไม่มีแท็ก', tagPh:'เพิ่มแท็ก…', tagSuggest:'แนะนำ', noTagResult:'ไม่พบอัลบั้มที่ตรงกัน',
+  },
+  'ja':{name:'日本語', locale:'ja',
+    appName:'ローカルアルバム', desc:'Instagramスタイルで写真を閲覧\nまたはIGアカウントからインポート',
+    openFolder:'📂 写真フォルダを選択', fromIG:'📥 Instagramからインポート',
+    note:'ChromeまたはEdgeが必要 · データはすべてローカルに保存',
+    compatError:'⚠️ ChromeまたはEdgeをご使用ください',
+    igPlaceholder:'IGユーザー名を入力（例：natgeo）', igGenerate:'コマンドを生成',
+    igCount:'上限を設定', igCountUnit:'件', igCountHint:'（空欄＝すべて）', igCountAll:'すべて（時間がかかる場合あり）',
+    igModeCount:'件数', igModeRange:'範囲', igRangeFrom:'第', igRangeTo:'～',
+    igTotalLabel:'総投稿数', igPresetHint:'総数を入力すると区間を自動生成',
+    igOutput:'保存先', igOutputPlaceholder:'./downloads（デフォルト）',
+    igStep1:'依存関係をインストール（初回のみ）', igStepCheck:'件数確認と範囲選択', igStep2:'ターミナルでダウンロード実行',
+    igTotalLabel2:'実行後に件数を入力',
+    igStep3:'ダウンロード完了後', igStep3Note:'「写真フォルダを選択」→ {path} を選択',
+    copy:'コピー', copied:'✓ コピー済み',
+    albumTitle:'アルバム名', albumDesc:'この旅のストーリーを書いてください…',
+    photoCaption:'この写真のストーリーを書いてください…',
+    igLink:'↗ Instagramで見る', igLinkShort:'↗ IG', igBadge:'IG',
+    noPhotos:'写真が見つかりません', loading:'写真を読み込み中…',
+    fromIGBadge:'· Instagramより', videoTag:'▶ 動画',
+    photoCount:n=>`${n}枚`,
+    gridView:'グリッド', feedView:'フィード',
+    toastCopied:'コマンドをコピーしました', toastChrome:'ChromeまたはEdgeをご使用ください',
+    toastNoFolder:'フォルダが選択されていません', toastReadFail:'読込失敗：',
+    viewFile:'🔗 表示', copyPath:'📋 パスをコピー', openDir:'📂 フォルダを開く',
+    pathCopied:'✓ パスをコピーしました', pathUnknown:'⚠️ 保存先が設定されていません',
+    folderCopied:'📂 パスをコピーしました → エクスプローラーのアドレス欄に貼り付け',
+    reopenFolder:name=>`📂 再度開く：${name}`,
+    locationPh:'場所を追加…', filterAll:'すべて', filterUntagged:'⬜ 未分類', tagPh:'タグを追加…', tagSuggest:'おすすめ', noTagResult:'一致するアルバムなし',
+  },
+  'ko':{name:'한국어', locale:'ko',
+    appName:'로컬 앨범', desc:'Instagram 스타일로 사진 보기\n또는 IG 계정에서 가져오기',
+    openFolder:'📂 사진 폴더 선택', fromIG:'📥 Instagram에서 가져오기',
+    note:'Chrome 또는 Edge 필요 · 모든 데이터는 로컬에 저장',
+    compatError:'⚠️ Chrome 또는 Edge를 사용해 주세요',
+    igPlaceholder:'IG 사용자 이름 입력 (예: natgeo)', igGenerate:'명령어 생성',
+    igCount:'개수 지정', igCountUnit:'개', igCountHint:'(비우면 전부)', igCountAll:'전부 (느릴 수 있음)',
+    igModeCount:'개수', igModeRange:'범위', igRangeFrom:'제', igRangeTo:'~',
+    igTotalLabel:'총 게시물 수', igPresetHint:'총 수 입력 후 구간 자동 생성',
+    igOutput:'저장 경로', igOutputPlaceholder:'./downloads (기본값)',
+    igStep1:'의존성 설치 (최초 1회)', igStepCheck:'개수 확인 및 범위 선택', igStep2:'터미널에서 다운로드 실행',
+    igTotalLabel2:'실행 후 개수 입력',
+    igStep3:'다운로드 완료 후', igStep3Note:'「사진 폴더 선택」→ {path} 선택',
+    copy:'복사', copied:'✓ 복사됨',
+    albumTitle:'앨범 이름', albumDesc:'이 여행의 이야기를 써주세요…',
+    photoCaption:'이 사진의 이야기를 써주세요…',
+    igLink:'↗ Instagram에서 보기', igLinkShort:'↗ IG', igBadge:'IG',
+    noPhotos:'사진을 찾을 수 없습니다', loading:'사진을 불러오는 중…',
+    fromIGBadge:'· Instagram에서', videoTag:'▶ 동영상',
+    photoCount:n=>`${n}장`,
+    gridView:'그리드', feedView:'피드',
+    toastCopied:'명령어가 복사되었습니다', toastChrome:'Chrome 또는 Edge를 사용해 주세요',
+    toastNoFolder:'폴더가 선택되지 않았습니다', toastReadFail:'읽기 실패: ',
+    viewFile:'🔗 보기', copyPath:'📋 경로 복사', openDir:'📂 폴더 열기',
+    pathCopied:'✓ 경로 복사됨', pathUnknown:'⚠️ 저장 경로가 설정되지 않았습니다',
+    folderCopied:'📂 경로 복사됨 → 파일 탐색기 주소창에 붙여넣기',
+    reopenFolder:name=>`📂 다시 열기: ${name}`,
+    locationPh:'장소 추가…', filterAll:'전체', filterUntagged:'⬜ 미분류', tagPh:'태그 추가…', tagSuggest:'추천', noTagResult:'일치하는 앨범 없음',
+  },
+};
+
+let currentLang = localStorage.getItem('lang-pref') || 'zh-TW';
+const t = key => LANGS[currentLang][key];
+
+// 更新 Step3 提示（含儲存路徑 + 用戶名，可選傳入 overrideUser）
+function updateIgStep3Note(overrideUser){
+  const noteEl=$('igStep3Note');
+  if(!noteEl) return;
+  const user = overrideUser!=null ? overrideUser : ($('igUserDisplay')?.textContent||'');
+  const raw  = $('igOutput')?.value.trim().replace(/[/\\]+$/,'') || '';
+  const dir  = raw || 'downloads';
+  const tmpl = LANGS[currentLang].igStep3Note || '';
+  const [bef,aft] = tmpl.split('{path}');
+  noteEl.innerHTML = esc(bef||'')+'<b>'+esc(dir)+'/<span id="igUserDisplay">'+esc(user)+'</span></b>'+esc(aft||'');
+}
+
+function applyLang(){
+  const L = LANGS[currentLang];
+  // Welcome
+  document.querySelector('.wTitle').textContent     = L.appName;
+  document.querySelector('.wDesc').innerHTML        = L.desc.replace(/\n/g,'<br>');
+  $('btnWelcomeOpen').textContent = L.openFolder;
+  $('btnShowIG').textContent      = L.fromIG;
+  $('igFetchBtn').textContent     = L.igGenerate;
+  $('igInput').placeholder        = L.igPlaceholder;
+  $('igCountLabel').textContent     = L.igCount;
+  $('igCountUnitLbl').textContent   = (L.igCountUnit||'')+' '+L.igCountHint;
+  $('igCountAll').textContent       = L.igCountAll;
+  $('igOutputLabel').textContent    = L.igOutput;
+  $('igOutput').placeholder         = L.igOutputPlaceholder;
+  // IG panel step labels (text node after badge span)
+  [['igStep1',L.igStep1],['igStep2',L.igStep2],['igStep3',L.igStep3]].forEach(([id,txt])=>{
+    const lbl=$(id)?.querySelector('.igStepLabel');
+    if(lbl) lbl.childNodes[1].textContent=txt;
+  });
+  // igStep3 note — rebuild via shared helper
+  updateIgStep3Note();
+  // Copy buttons
+  [$('igCopy1'),$('igCopy2')].forEach(b=>{ if(b&&!b.classList.contains('done')) b.textContent=L.copy; });
+  // Header open button
+  $('btnOpen').textContent = L.openFolder.replace(/^📂 /,'');
+  // View toggle
+  if(S.albumMode==='feed')      btnViewToggle.textContent=L.gridView;
+  else if(S.gridCols>=5)        btnViewToggle.textContent=L.feedView;
+  else                          btnViewToggle.textContent=`${S.gridCols+1}格`;
+  // compat note
+  const cn=$('compatNote');
+  if(cn && !window.showDirectoryPicker) cn.innerHTML=L.compatError;
+  else if(cn) cn.textContent=L.note;
+  // Live placeholders in album/lightbox
+  document.querySelectorAll('.albumMetaTitle').forEach(el=>el.placeholder=L.albumTitle);
+  document.querySelectorAll('.albumMetaDesc').forEach(el=>el.placeholder=L.albumDesc);
+  document.querySelectorAll('.postCaption').forEach(el=>el.placeholder=L.photoCaption);
+  document.querySelectorAll('.lbCaption').forEach(el=>el.placeholder=L.photoCaption);
+  // IG links
+  document.querySelectorAll('.albumIgLink').forEach(el=>el.textContent=L.igLink);
+  document.querySelectorAll('.lbIgLink').forEach(el=>el.textContent=L.igLinkShort);
+  // Dynamic rendered text — update in-place so no re-render needed
+  document.querySelectorAll('.albumMetaCount[data-n]').forEach(el=>{
+    const n=parseInt(el.dataset.n)||0;
+    const vc=parseInt(el.dataset.vc)||0;
+    const iv=el.dataset.iv==='1';
+    const label=(vc===n||(iv&&vc===0&&n===1))
+      ?(n===1?t('videoTag'):`${n} ${t('videoTag')}`)
+      :t('photoCount')(n);
+    el.textContent=label+(el.dataset.fromIG==='1'?' '+t('fromIGBadge'):'');
+  });
+  document.querySelectorAll('.aMeta[data-n]').forEach(el=>{
+    const n=parseInt(el.dataset.n)||0;
+    const vc=parseInt(el.dataset.vc)||0;
+    const iv=el.dataset.iv==='1';
+    const label=(vc===n||(iv&&vc===0&&n===1))
+      ?(n===1?t('videoTag'):`${n} ${t('videoTag')}`)
+      :t('photoCount')(n);
+    const extra=el.dataset.extra||'';
+    el.textContent=label+(extra?' · '+extra:'');
+  });
+  document.querySelectorAll('.postVideoTag').forEach(el=>el.textContent=t('videoTag'));
+  if(S.view==='home') hdrTitle.textContent=`📸 ${S.rootName||t('appName')}`;
+  document.querySelectorAll('.postActBtn[data-action="view"]').forEach(el=>el.title=t('viewFile'));
+  document.querySelectorAll('.postActBtn[data-action="copy"]').forEach(el=>el.title=t('copyPath'));
+  document.querySelectorAll('.lbActBtn[data-action="view"]').forEach(el=>{
+    const s=el.querySelector('.lbActBtnLabel'); if(s) s.textContent=t('viewFile');
+  });
+  document.querySelectorAll('.lbActBtn[data-action="copy"]').forEach(el=>{
+    const s=el.querySelector('.lbActBtnLabel'); if(s) s.textContent=t('copyPath');
+  });
+
+  const rb=$('btnReopen');
+  if(rb&&rb.style.display!=='none') rb.textContent=t('reopenFolder')(rb.dataset.name||'');
+  // 重新偵測未手動修改標籤的相冊（語言切換時更新國家/活動名稱）
+  if(S.albums.length){
+    // 語言切換：篩選條件含舊語言字串，必須清空，否則 getFilteredAlbums 無法匹配
+    S.activeTags.clear();
+    S.expandedL1s.clear();
+    S.albums.forEach(alb=>{
+      if(!alb._hasManualTags) alb.tags=autoDetectTags(alb);
+      else alb.tags=(alb.tags||[]).map(translateTag);
+    });
+    if(S.view==='home') renderHome();
+    else if(S.view==='album'){
+      // 刷新相冊內的標籤編輯器
+      const te=$('vAlbum').querySelector('.tagEditor');
+      if(te){ const parent=te.parentNode; const sr=parent.querySelector('.suggestRow');
+        if(sr) parent.removeChild(sr); parent.removeChild(te); renderTagEditor(S.currentAlbum,parent); }
+      // 同步重建 home filter bar（隱藏中），避免返回主頁時顯示舊語言
+      renderHome();
+    }
+  }
+  // Filter bar & tag editor
+  document.querySelectorAll('.tagInput').forEach(el=>el.placeholder=t('tagPh'));
+  document.querySelectorAll('.sugLabel').forEach(el=>el.textContent=t('tagSuggest')+'：');
+  document.querySelectorAll('.albumLocationInput').forEach(el=>el.placeholder=t('locationPh')||'添加地点…');
+  localStorage.setItem('lang-pref', currentLang);
+}
+
+function buildLangSelector(){
+  const sel=$('langSel');
+  Object.entries(LANGS).forEach(([code,{name}])=>{
+    const opt=document.createElement('option');
+    opt.value=code; opt.textContent=name;
+    if(code===currentLang) opt.selected=true;
+    sel.appendChild(opt);
+  });
+  sel.addEventListener('change',()=>{
+    currentLang=sel.value; applyLang();
+  });
+}
+
+// ── State ─────────────────────────────────────────────────────────────────
+const S = {
+  albums:[], currentAlbum:null, currentIdx:0,
+  view:'welcome', albumMode:'feed', gridCols:3,
+  rootDirHandle:null, rootAbsPath:null,
+  activeTags:new Set(),
+  expandedL1s:new Set(),
+  sortDesc:true,
+  mediaFilter:'all', // 'all' | 'video' | 'photo'
+};
+
+// ── Storage ───────────────────────────────────────────────────────────────
+const store = {
+  _d(){ try{return JSON.parse(localStorage.getItem(STORE_KEY)||'{}')}catch{return{}} },
+  _s(d){ localStorage.setItem(STORE_KEY,JSON.stringify(d)) },
+  getCaption(alb,photo){
+    const d=this._d(); return d[alb]?.photos?.[photo]??null;
+  },
+  setCaption(alb,photo,txt){
+    const d=this._d();
+    d[alb]=d[alb]||{photos:{}};
+    d[alb].photos=d[alb].photos||{};
+    d[alb].photos[photo]=txt;
+    this._s(d);
+  },
+  getAlbum(name){ return this._d()[name]||{} },
+  setAlbum(name,patch){
+    const d=this._d();
+    d[name]={...d[name]||{},...patch};
+    this._s(d);
+  },
+};
+
+// ── Tag helpers ───────────────────────────────────────────────────────────
+function autoDetectTags(alb){
+  const text=((alb.desc||'')+' '+(alb.title||'')+' '+(alb.location||'')).toLowerCase();
+  const loc=(alb.location||'').toLowerCase();
+  const tags=new Set();
+
+  for(const group of getEffectiveHierarchy()){
+    const l1=tagName(group.l1);
+
+    // L1 關鍵字匹配
+    if(group.kw.some(kw=>text.includes(kw))) tags.add(l1);
+
+    // L2 子項匹配
+    for(const child of (group.children||[])){
+      if(child.kw.some(kw=>text.includes(kw))){
+        tags.add(l1);
+        tags.add(`${l1}/${tagName(child.l2)}`);
+      }
+    }
+
+    // 旅行：通過 COUNTRY_MAP 偵測國家 → L2
+    if(group._useCountryMap){
+      for(const entry of COUNTRY_MAP){
+        if(entry.kw.some(kw=>loc.includes(kw)||text.includes(kw))){
+          tags.add(l1);
+          tags.add(`${l1}/${tagName(entry)}`);
+          break;
+        }
+      }
+    }
+
+    // 周末-山林：location 作為 L2
+    if(group._useLocationAsL2 && tags.has(l1) && alb.location && alb.location.length<=15){
+      tags.add(`${l1}/${alb.location}`);
+    }
+  }
+
+  return [...tags];
+}
+
+function addTag(alb, tag) {
+  tag = tag.trim();
+  if (!tag || (alb.tags||[]).includes(tag)) return false;
+  alb.tags = [...(alb.tags||[]), tag];
+  store.setAlbum(alb.name, { tags: alb.tags });
+  scheduleWrite(alb);
+  return true;
+}
+
+function removeTag(alb, tag) {
+  alb.tags = (alb.tags||[]).filter(t => t !== tag);
+  store.setAlbum(alb.name, { tags: alb.tags });
+  scheduleWrite(alb);
+}
+
+// ── IndexedDB ─────────────────────────────────────────────────────────────
+const idb={
+  _db:null,
+  async _open(){
+    if(this._db)return this._db;
+    return new Promise((res,rej)=>{
+      const r=indexedDB.open('local-ig-fsh',1);
+      r.onupgradeneeded=e=>e.target.result.createObjectStore('h');
+      r.onsuccess=e=>{this._db=e.target.result;res(this._db);};
+      r.onerror=rej;
+    });
+  },
+  async set(k,v){const db=await this._open();return new Promise((res,rej)=>{const tx=db.transaction('h','readwrite');tx.objectStore('h').put(v,k);tx.oncomplete=res;tx.onerror=rej;});},
+  async get(k){const db=await this._open();return new Promise((res,rej)=>{const tx=db.transaction('h','readonly');const r=tx.objectStore('h').get(k);r.onsuccess=()=>res(r.result);r.onerror=rej;});},
+};
+
+// ── EXIF date ─────────────────────────────────────────────────────────────
+function parseExifStr(s){
+  const m=s&&s.match(/^(\d{4}):(\d{2}):(\d{2}) (\d{2}):(\d{2}):(\d{2})/);
+  if(!m)return null;
+  const d=new Date(+m[1],+m[2]-1,+m[3],+m[4],+m[5],+m[6]);
+  return isNaN(d)?null:d;
+}
+async function getPhotoDate(file){
+  if(!file.name.match(/\.jpe?g$/i)) return new Date(file.lastModified);
+  try{
+    const buf=await file.slice(0,131072).arrayBuffer();
+    const v=new DataView(buf);
+    if(v.getUint16(0)!==0xFFD8) return new Date(file.lastModified);
+    let off=2;
+    while(off<buf.byteLength-4){
+      const mk=v.getUint16(off);
+      if((mk&0xFF00)!==0xFF00) break;
+      const len=v.getUint16(off+2);
+      if(mk===0xFFE1&&v.getUint32(off+4)===0x45786966&&v.getUint16(off+8)===0){
+        const t=off+10;
+        const le=v.getUint16(t)===0x4949;
+        const u16=o=>v.getUint16(t+o,le);
+        const u32=o=>v.getUint32(t+o,le);
+        const str=voff=>{let s='';for(let i=0;i<20;i++){const c=v.getUint8(t+voff+i);if(!c)break;s+=String.fromCharCode(c);}return s;};
+        const scan=iOff=>{
+          if(t+iOff+2>buf.byteLength)return null;
+          const n=u16(iOff);let dt=null,ep=null;
+          for(let i=0;i<n&&i<128;i++){
+            const e=iOff+2+i*12;
+            if(t+e+12>buf.byteLength)break;
+            const tag=u16(e),vo=u32(e+8);
+            if(tag===0x9003||tag===0x9004)return parseExifStr(str(vo));
+            if(tag===0x8769)ep=vo;
+            if(tag===0x0132)dt=parseExifStr(str(vo));
+          }
+          if(ep!=null){const d=scan(ep);if(d)return d;}
+          return dt;
+        };
+        const d=scan(u32(4));if(d)return d;
+        break;
+      }
+      off+=2+len;
+    }
+  }catch(_){}
+  return new Date(file.lastModified);
+}
+
+// ── File system ───────────────────────────────────────────────────────────
+async function readPhotosFromDir(dir){
+  const images=[], videos=[];
+  let postMeta=null, notesData=null;
+  for await(const [name,h] of dir.entries()){
+    if(h.kind==='file'){
+      if(name==='meta.json'){
+        try{
+          const file=await h.getFile();
+          postMeta=JSON.parse(await file.text());
+        }catch{}
+      } else if(name==='notes.json'){
+        try{
+          const file=await h.getFile();
+          notesData=JSON.parse(await file.text());
+        }catch{}
+      } else if(name.match(IMG_EXT)){
+        const file=await h.getFile();
+        images.push({name,file,date:null,url:null,isVideo:false});
+      } else if(name.match(VIDEO_EXT)){
+        const file=await h.getFile();
+        videos.push({name,file,date:null,url:null,isVideo:true,poster:null});
+      }
+    }
+  }
+  // 将视频与同名封面图配对（如 1.jpg ↔ 1.mp4）
+  const usedCovers=new Set();
+  for(const v of videos){
+    const base=v.name.replace(/\.\w+$/,'');
+    const cover=images.find(p=>p.name.replace(/\.\w+$/,'')=== base);
+    if(cover){v.poster=cover;usedCovers.add(cover.name);}
+  }
+  // 展示列表：未配对图片 + 视频；保留第一张图供封面
+  const firstImage=images[0]||null;
+  const photos=[...images.filter(p=>!usedCovers.has(p.name)),...videos];
+  photos.sort((a,b)=>a.name.localeCompare(b.name,undefined,{numeric:true}));
+  return {photos,postMeta,firstImage,notesData};
+}
+
+async function readFolder(root){
+  const albums=[], rootPhotos=[];
+  // 读取 _path.txt（由 ig_download.py 自动写入），获取绝对路径
+  S.rootAbsPath=null;
+  try{
+    const ph=await root.getFileHandle('_path.txt');
+    S.rootAbsPath=(await (await ph.getFile()).text()).trim().replace(/[/\\]+$/,'');
+  }catch{}
+  // 根目录自身的 notes.json
+  let rootNotesData=null;
+  try{
+    const fh=await root.getFileHandle('notes.json');
+    rootNotesData=JSON.parse(await (await fh.getFile()).text());
+  }catch{}
+
+  for await(const [name,h] of root.entries()){
+    if(h.kind==='directory'){
+      const {photos,postMeta,firstImage,notesData}=await readPhotosFromDir(h);
+      if(photos.length) albums.push({name,handle:h,photos,coverUrl:null,postMeta,firstImage,notesData});
+    } else if(h.kind==='file'&&name.match(IMG_EXT)){
+      rootPhotos.push({name,file:await h.getFile(),date:null,url:null});
+    }
+  }
+  if(rootPhotos.length){
+    albums.unshift({name:'__root__',handle:null,photos:rootPhotos,coverUrl:null,postMeta:null,rootAlbum:true,firstImage:null,notesData:rootNotesData});
+  }
+
+  // 排序在 getFilteredAlbums() 中根据 S.sortDesc 动态处理
+
+  for(const alb of albums){
+    const nd =alb.notesData;        // notes.json（磁盘持久化）
+    const meta=store.getAlbum(alb.name); // localStorage（浏览器缓存）
+    const pm =alb.postMeta;         // meta.json（IG 元数据）
+
+    // 日期：优先 meta.json（IG 发布时间），否则 EXIF
+    if(pm?.date){
+      const d=new Date(pm.date);
+      alb.photos.forEach(p=>p.date=isNaN(d)?new Date(p.file.lastModified):d);
+    } else {
+      for(const p of alb.photos) p.date=await getPhotoDate(p.file);
+      alb.photos.sort((a,b)=>a.date-b.date);
+    }
+
+    // 封面：优先用图片文件（非视频），确保首页缩略图始终是静态图
+    const coverSrc=alb.firstImage||(alb.photos.find(p=>!p.isVideo))||alb.photos[0];
+    if(coverSrc) alb.coverUrl=URL.createObjectURL(coverSrc.file);
+
+    // 标题：notes.json > localStorage > meta.json 短标题 > 文件夹名
+    alb.title = nd?.title || meta.title || (pm ? firstLine(pm.caption,36) : null) || (alb.rootAlbum?root.name:alb.name);
+
+    // 文案：notes.json > localStorage > meta.json
+    alb.desc = nd?.desc!==undefined ? nd.desc : (meta.desc!==undefined ? meta.desc : (pm?.caption||''));
+
+    // 位置：notes.json > localStorage > meta.json
+    alb.location = nd?.location!==undefined ? nd.location : (meta.location!==undefined ? meta.location : (pm?.location||''));
+    alb.igUrl    = pm?.ig_url || '';
+    alb.likes    = pm?.likes ?? null;
+    alb.fromIG   = !!pm;
+
+    // 標籤：notes.json > localStorage；若皆無則自動偵測
+    const savedTags = nd?.tags ?? meta.tags ?? null;
+    alb._hasManualTags = savedTags !== null;
+    alb.tags = savedTags !== null
+      ? savedTags.filter(t => typeof t === 'string' && t.trim()).map(translateTag)
+      : autoDetectTags(alb);
+  }
+  return albums;
+}
+
+function firstLine(text, max){
+  if(!text) return '';
+  const line=(text.split('\n').find(l=>l.trim())||'').trim();
+  return line.length>max ? line.slice(0,max)+'…' : line;
+}
+
+// ── 备注持久化（写入 notes.json）────────────────────────────────────────────
+const _writeTimers={};
+function scheduleWrite(alb){
+  clearTimeout(_writeTimers[alb.name]);
+  _writeTimers[alb.name]=setTimeout(()=>writeNotes(alb),1200);
+}
+async function writeNotes(alb){
+  const dirHandle=alb.rootAlbum ? S.rootDirHandle : alb.handle;
+  if(!dirHandle) return;
+  try{
+    const meta=store.getAlbum(alb.name);
+    const raw=store._d();
+    const notes={};
+    if(meta.title!==undefined)    notes.title=meta.title;
+    if(meta.desc!==undefined)     notes.desc=meta.desc;
+    if(meta.location!==undefined) notes.location=meta.location;
+    const caps=raw[alb.name]?.photos||{};
+    if(Object.keys(caps).length)  notes.photos={...caps};
+    if(meta.tags?.length)         notes.tags=meta.tags;
+
+    const fh=await dirHandle.getFileHandle('notes.json',{create:true});
+    const w=await fh.createWritable();
+    await w.write(JSON.stringify(notes,null,2));
+    await w.close();
+    alb.notesData={...alb.notesData,...notes};
+  }catch{/* 只读/无权限时静默降级，不影响使用 */}
+}
+
+// ── DOM ───────────────────────────────────────────────────────────────────
+const $=id=>document.getElementById(id);
+const btnBack=$('btnBack'), btnOpen=$('btnOpen'), btnViewToggle=$('btnViewToggle'), btnSort=$('btnSort'), btnMediaFilter=$('btnMediaFilter');
+const hdrTitle=$('hdrTitle'), toastEl=$('toast');
+const lbImg=$('lbImg'), lbCaption=$('lbCaption');
+const lbPrev=$('lbPrev'), lbNext=$('lbNext');
+const lbCounter=$('lbCounter'), lbDate=$('lbDate');
+let toastTimer;
+
+function toast(msg,dur=2400){
+  toastEl.textContent=msg;toastEl.classList.add('on');
+  clearTimeout(toastTimer);
+  toastTimer=setTimeout(()=>toastEl.classList.remove('on'),dur);
+}
+
+// ── Navigation ────────────────────────────────────────────────────────────
+function showView(name){
+  ['vWelcome','vHome','vAlbum','vLB'].forEach(id=>$(id).classList.remove('on'));
+  $({welcome:'vWelcome',home:'vHome',album:'vAlbum',lb:'vLB'}[name]).classList.add('on');
+  S.view=name;
+}
+function isVideoAlbum(alb){
+  const photos=alb.photos, n=photos.length, vc=photos.filter(p=>p.isVideo).length;
+  return vc===n||(alb.postMeta?.is_video&&vc===0&&n===1);
+}
+function updateSortBtn(){
+  btnSort.textContent=S.sortDesc ? '↓ 倒序' : '↑ 正序';
+}
+function updateMediaBtn(){
+  btnMediaFilter.textContent={all:'全部',video:'仅视频',photo:'仅照片'}[S.mediaFilter];
+  btnMediaFilter.classList.toggle('pri', S.mediaFilter!=='all');
+}
+function goHome(){
+  renderHome();showView('home');
+  hdrTitle.textContent=`📸 ${S.rootName||t('appName')}`;
+  btnBack.style.display='none';btnViewToggle.style.display='none';
+  btnSort.style.display='';updateSortBtn();
+  btnMediaFilter.style.display='';updateMediaBtn();
+  btnOpen.style.display='';$('hdr').style.display='';
+}
+function goAlbum(alb){
+  S.currentAlbum=alb;S.albumMode='feed';S.gridCols=3;
+  renderAlbum(alb);showView('album');
+  hdrTitle.textContent=alb.title;
+  btnBack.style.display='';btnViewToggle.style.display='';
+  btnSort.style.display='none';btnMediaFilter.style.display='none';
+  btnOpen.style.display='none';updateGridBtn();
+  $('hdr').style.display='';
+}
+
+function updateGridBtn(){
+  if(S.albumMode==='feed') btnViewToggle.textContent=t('gridView');
+  else if(S.gridCols>=5)   btnViewToggle.textContent=t('feedView');
+  else                      btnViewToggle.textContent=`${S.gridCols+1}格`;
+}
+function openLB(alb,idx){
+  S.currentAlbum=alb;S.currentIdx=idx;
+  renderLB();showView('lb');$('hdr').style.display='none';
+}
+function closeLB(){
+  $('lbVideo').pause();
+  $('hdr').style.display='';showView('album');
+  hdrTitle.textContent=S.currentAlbum.title;
+  btnBack.style.display='';btnViewToggle.style.display='';
+  btnOpen.style.display='none';
+  btnSort.style.display='none';
+  btnMediaFilter.style.display='none';
+}
+
+// ── Render: Home ──────────────────────────────────────────────────────────
+function getFilteredAlbums(){
+  let result = S.albums;
+  if(S.activeTags.size){
+    const UNTAGGED=t('filterUntagged');
+    result=S.albums.filter(alb=>{
+      const tags=alb.tags||[];
+      for(const ft of S.activeTags){
+        if(ft===UNTAGGED){
+          // 未分類：無任何 L1 標簽（tags 全空，或只有 L2 孤兒）
+          const hasL1=tags.some(tag=>!tag.includes('/'));
+          if(hasL1) return false;
+        } else if(ft.endsWith(L2_UNCLASSIFIED)){
+          // L1 下的未分类：有该 L1（裸标签）但无该 L1 下的任何 L2
+          const l1=ft.slice(0,-L2_UNCLASSIFIED.length);
+          if(!tags.some(t=>t===l1)||tags.some(t=>t.startsWith(l1+'/'))) return false;
+        } else {
+          if(!tags.some(tag=>tag===ft||tag.startsWith(ft+'/'))) return false;
+        }
+      }
+      return true;
+    });
+  }
+  if(S.mediaFilter==='video') result=result.filter(isVideoAlbum);
+  else if(S.mediaFilter==='photo') result=result.filter(alb=>!isVideoAlbum(alb));
+  return [...result].sort((a,b)=>{
+    const cmp=a.name.localeCompare(b.name,'zh');
+    return S.sortDesc ? -cmp : cmp;
+  });
+}
+
+function mkChip(label,active,onClick){
+  const c=document.createElement('div');
+  c.className='filterChip'+(active?' active':'');
+  c.textContent=label;c.addEventListener('click',e=>onClick(e));return c;
+}
+
+function buildL2Row(l1,l2counts){
+  const row=document.createElement('div');
+  row.className='l2row';
+  row.dataset.l1=l1;
+  const unclKey=l1+L2_UNCLASSIFIED;
+  const mkL2Chip=(tag,cnt,label,isUncl)=>{
+    const active=S.activeTags.has(tag);
+    const c=mkChip(`${label}${cnt>1?' '+cnt:''}`,active,e=>{
+      if(e.ctrlKey||e.metaKey){
+        if(active) S.activeTags.delete(tag);
+        else{ S.activeTags.delete(l1);S.activeTags.add(tag); }
+      } else {
+        S.activeTags.clear();
+        if(!active) S.activeTags.add(tag);
+      }
+      S.expandedL1s.add(l1);
+      refreshHomeFilter();
+    });
+    c.classList.add('l2chip');
+    if(isUncl) c.style.cssText='opacity:.6;border-style:dashed';
+    row.appendChild(c);
+  };
+  // 普通 L2（按数量降序）
+  [...l2counts.entries()].filter(([t])=>t!==unclKey).sort((a,b)=>b[1]-a[1])
+    .forEach(([tag,cnt])=>mkL2Chip(tag,cnt,tag.split('/')[1],false));
+  // 未分类放最后
+  if(l2counts.has(unclKey)) mkL2Chip(unclKey,l2counts.get(unclKey),'未分类',true);
+  return row;
+}
+
+function buildFilterBar(){
+  // 每個 album 只計一次 L1（避免 L2 導致的重複計數）
+  const l1Counts=new Map(),l2Map=new Map();
+  // 收集所有已歸類的 L2 suffix（用於過濾重複的獨立 chip）
+  const classifiedSuffixes=new Set();
+  S.albums.forEach(alb=>{
+    const seenL1=new Set();
+    (alb.tags||[]).forEach(tag=>{
+      const slash=tag.indexOf('/');
+      if(slash===-1) return; // 先收集所有 L2 suffix
+      classifiedSuffixes.add(tag.slice(slash+1));
+    });
+    (alb.tags||[]).forEach(tag=>{
+      const slash=tag.indexOf('/');
+      if(slash===-1){
+        // 只有不是已歸類 L2 suffix 的才作為獨立 L1 chip
+        if(!classifiedSuffixes.has(tag)){
+          if(!seenL1.has(tag)){seenL1.add(tag);l1Counts.set(tag,(l1Counts.get(tag)||0)+1);}
+        }
+      } else {
+        const l1=tag.slice(0,slash);
+        if(!seenL1.has(l1)){seenL1.add(l1);l1Counts.set(l1,(l1Counts.get(l1)||0)+1);}
+        if(!l2Map.has(l1)) l2Map.set(l1,new Map());
+        l2Map.get(l1).set(tag,(l2Map.get(l1).get(tag)||0)+1);
+      }
+    });
+  });
+
+  // 为每个 L1 统计「有该 L1 裸标签但无任何 L1/xxx」的 album 数，注入虚拟 L2 未分类 entry
+  for(const l1 of l1Counts.keys()){
+    const unclCnt=S.albums.filter(alb=>{
+      const tags=alb.tags||[];
+      return tags.some(t=>t===l1)&&!tags.some(t=>t.startsWith(l1+'/'));
+    }).length;
+    if(unclCnt>0){
+      if(!l2Map.has(l1)) l2Map.set(l1,new Map());
+      l2Map.get(l1).set(l1+L2_UNCLASSIFIED,unclCnt);
+    }
+  }
+
+  // 哪些 L1 應強制顯示箭頭（即使目前無 L2 資料）
+  const alwaysArrowL1s=new Set(
+    getEffectiveHierarchy().filter(g=>g._alwaysShowArrow).map(g=>tagName(g.l1))
+  );
+
+  const bar=document.createElement('div');
+  bar.className='filterBar';bar.id='filterBar';
+  const hasUntagged=S.albums.some(alb=>!(alb.tags||[]).some(tag=>!tag.includes('/')));
+
+  // 合併：有素材的 L1（按數量排序）+ 無素材的 L1（按 hierarchy 順序）
+  const effectiveL1s=getEffectiveHierarchy().map(g=>tagName(g.l1));
+  const presentEntries=[...l1Counts.entries()].sort((a,b)=>b[1]-a[1]);
+  const presentSet=new Set(presentEntries.map(([l1])=>l1));
+  const absentEntries=effectiveL1s.filter(l1=>!presentSet.has(l1)).map(l1=>[l1,0]);
+  const allEntries=[...presentEntries,...absentEntries];
+
+  if(!allEntries.length&&!hasUntagged){bar.style.display='none';return bar;}
+
+  bar.appendChild(mkChip(t('filterAll'),!S.activeTags.size,()=>{S.activeTags.clear();refreshHomeFilter();}));
+
+  allEntries.forEach(([l1,cnt])=>{
+    const hasL2Data=l2Map.has(l1)&&l2Map.get(l1).size>0;
+    const showArrow=hasL2Data||alwaysArrowL1s.has(l1);
+    const l1Active=S.activeTags.has(l1)||[...S.activeTags].some(t=>t.startsWith(l1+'/'));
+
+    const label=cnt>0?`${l1} ${cnt}`:l1;
+    const chip=mkChip(label,l1Active,e=>{
+      if(cnt===0) return; // 無素材時不可點擊篩選
+      if(e.ctrlKey||e.metaKey){
+        [...S.activeTags].filter(t=>t===l1||t.startsWith(l1+'/')).forEach(t=>S.activeTags.delete(t));
+        if(!l1Active) S.activeTags.add(l1);
+      } else {
+        S.activeTags.clear();
+        if(!l1Active) S.activeTags.add(l1);
+      }
+      refreshHomeFilter();
+    });
+    if(cnt===0) chip.style.cssText='opacity:.3;cursor:default';
+
+    if(showArrow){
+      const arrow=document.createElement('span');
+      const isExpanded=S.expandedL1s.has(l1);
+      arrow.textContent=isExpanded?' ▴':' ▾';
+      arrow.style.cssText='opacity:.5;font-size:10px';
+      chip.appendChild(arrow);
+
+      const toggleL2=()=>{
+        if(!hasL2Data) return; // 無 L2 資料時箭頭僅作裝飾
+        const existing=bar.querySelector(`.l2row[data-l1="${CSS.escape(l1)}"]`);
+        if(existing){
+          existing.remove();arrow.textContent=' ▾';S.expandedL1s.delete(l1);
+        } else {
+          const row=buildL2Row(l1,l2Map.get(l1));
+          chip.after(row);arrow.textContent=' ▴';S.expandedL1s.add(l1);
+        }
+      };
+      arrow.addEventListener('click',e=>{e.stopPropagation();toggleL2();});
+
+      // 恢復展開狀態（僅在有 L2 資料時）
+      if(isExpanded&&hasL2Data){
+        const row=buildL2Row(l1,l2Map.get(l1));
+        bar._pendingL2=bar._pendingL2||[];
+        bar._pendingL2.push({chip,row});
+      }
+    }
+    bar.appendChild(chip);
+  });
+
+  // 插入所有待恢復的 L2 行
+  if(bar._pendingL2){
+    bar._pendingL2.forEach(({chip,row})=>chip.after(row));
+    delete bar._pendingL2;
+  }
+
+  // 未分類 chip（有無標簽的 album 時才顯示）
+  const UNTAGGED=t('filterUntagged');
+  const untaggedCnt=S.albums.filter(alb=>{
+    const tags=alb.tags||[];
+    return !tags.some(tag=>!tag.includes('/'));
+  }).length;
+  if(untaggedCnt>0){
+    const untaggedActive=S.activeTags.has(UNTAGGED);
+    const uc=mkChip(`${UNTAGGED} ${untaggedCnt}`,untaggedActive,e=>{
+      if(e.ctrlKey||e.metaKey){
+        if(untaggedActive) S.activeTags.delete(UNTAGGED);
+        else S.activeTags.add(UNTAGGED);
+      } else {
+        S.activeTags.clear();
+        if(!untaggedActive) S.activeTags.add(UNTAGGED);
+      }
+      refreshHomeFilter();
+    });
+    uc.style.cssText='opacity:.6;border-style:dashed';
+    bar.appendChild(uc);
+  }
+
+  // ⚙ 管理按鈕（靠右）
+  const gearBtn=document.createElement('button');
+  gearBtn.className='filterManageBtn';gearBtn.title='管理 L1 分類';
+  gearBtn.innerHTML='&#9881;';gearBtn.style.marginLeft='auto';
+  gearBtn.addEventListener('click',()=>{
+    const existing=document.getElementById('l1Manager');
+    if(existing){existing.remove();return;}
+    showL1Manager();
+  });
+  bar.appendChild(gearBtn);
+
+  return bar;
+}
+
+// ── L1 管理面板 ────────────────────────────────────────────────────────────
+function showL1Manager(){
+  const existing=document.getElementById('l1Manager');
+  if(existing) existing.remove();
+
+  const cfg=loadTagConfig();
+  const hiddenSet=new Set(cfg.hidden||[]);
+
+  const panel=document.createElement('div');
+  panel.id='l1Manager';panel.className='l1Manager';
+
+  const hdr=document.createElement('div');
+  hdr.className='l1ManagerHdr';hdr.textContent='L1 分類管理';
+  panel.appendChild(hdr);
+
+  const list=document.createElement('div');
+
+  // 預設 L1
+  TAG_HIERARCHY.forEach(group=>{
+    const name=tagName(group.l1);
+    const hidden=hiddenSet.has(name);
+    const row=document.createElement('div');row.className='l1ManageItem';
+
+    const dot=document.createElement('span');dot.className='l1ManageDot';
+    dot.style.background=hidden?'#444':'var(--accent)';
+
+    const lbl=document.createElement('span');
+    lbl.textContent=name;lbl.style.opacity=hidden?'.4':'1';
+
+    const btn=document.createElement('button');btn.className='tagX';
+    btn.textContent=hidden?'↩':'×';btn.title=hidden?'恢復顯示':'隱藏';
+    btn.addEventListener('click',()=>{
+      if(hidden) cfg.hidden=(cfg.hidden||[]).filter(h=>h!==name);
+      else cfg.hidden=[...(cfg.hidden||[]),name];
+      saveTagConfig(cfg);
+      refreshHomeFilter();showL1Manager();
+    });
+    row.append(dot,lbl,btn);list.appendChild(row);
+  });
+
+  // 自定義 L1
+  (cfg.custom||[]).forEach((c,idx)=>{
+    const row=document.createElement('div');row.className='l1ManageItem';
+    const badge=document.createElement('span');badge.className='l1CustomBadge';badge.textContent='自定';
+    const lbl=document.createElement('span');lbl.textContent=c.name;
+    const btn=document.createElement('button');btn.className='tagX';btn.textContent='×';
+    btn.addEventListener('click',()=>{
+      cfg.custom=(cfg.custom||[]).filter((_,i)=>i!==idx);
+      saveTagConfig(cfg);refreshHomeFilter();showL1Manager();
+    });
+    row.append(badge,lbl,btn);list.appendChild(row);
+  });
+
+  panel.appendChild(list);
+
+  // 分隔線
+  const hr=document.createElement('div');hr.style.cssText='border-top:1px solid var(--border);margin:8px 0';
+  panel.appendChild(hr);
+
+  // 新增表單
+  const addRow=document.createElement('div');addRow.style.cssText='display:flex;gap:5px;align-items:center;flex-wrap:wrap';
+  const nameInp=document.createElement('input');
+  nameInp.className='tagL1Input';nameInp.placeholder='新 L1 名稱（含 emoji）…';nameInp.style.maxWidth='180px';
+  const kwInp=document.createElement('input');
+  kwInp.className='tagL2Input';kwInp.placeholder='偵測關鍵字（逗號分隔，可選）';kwInp.style.flex='1';
+  const addBtn=document.createElement('button');addBtn.className='tagAddBtn';addBtn.textContent='+';
+  const doAdd=()=>{
+    const name=nameInp.value.trim();if(!name)return;
+    const kws=kwInp.value.split(',').map(k=>k.trim()).filter(Boolean);
+    cfg.custom=[...(cfg.custom||[]),{name,kw:kws}];
+    saveTagConfig(cfg);nameInp.value='';kwInp.value='';
+    refreshHomeFilter();showL1Manager();
+  };
+  addBtn.addEventListener('click',doAdd);
+  [nameInp,kwInp].forEach(inp=>inp.addEventListener('keydown',e=>{if(e.key==='Enter'){e.preventDefault();doAdd();}}));
+  addRow.append(nameInp,kwInp,addBtn);
+  panel.appendChild(addRow);
+
+  const fb=document.getElementById('filterBar');
+  if(fb) fb.after(panel);
+}
+
+// 根据相册内容返回正确的媒体数量文字
+function mediaLabel(photos, postMeta){
+  const n  = photos.length;
+  const vc = photos.filter(p => p.isVideo).length;
+  // 全部是视频文件，或 IG 标注 is_video 且只有封面图（mp4未下载）
+  if(vc === n || (postMeta?.is_video && vc === 0 && n === 1)){
+    return n === 1 ? t('videoTag') : `${n} ${t('videoTag')}`;
+  }
+  return t('photoCount')(n);
+}
+
+function buildCard(alb){
+  const card=document.createElement('div');card.className='albumCard';
+  if(alb.coverUrl){
+    const img=document.createElement('img');img.src=alb.coverUrl;img.loading='lazy';
+    card.appendChild(img);
+  }
+  if(alb.photos.length>1){
+    const b=document.createElement('div');b.className='multiIcon';b.textContent='⧉';card.appendChild(b);
+  }
+  if(alb.fromIG){
+    const ig=document.createElement('div');ig.className='igIcon';ig.textContent='IG';card.appendChild(ig);
+  }
+  // 標籤浮層（只顯示 L1）
+  if(alb.tags?.length){
+    const shownTags=alb.tags.filter(t=>!t.includes('/'));
+    if(shownTags.length){
+      const tagsEl=document.createElement('div');tagsEl.className='cardTags';
+      shownTags.slice(0,3).forEach(tag=>{
+        const sp=document.createElement('span');sp.className='cardTag';sp.textContent=tag;
+        tagsEl.appendChild(sp);
+      });
+      card.appendChild(tagsEl);
+    }
+  }
+  const ov=document.createElement('div');ov.className='overlay';
+  // 日期：优先 meta.json 发布时间，回退到第一张媒体文件的 date
+  const _d=alb.postMeta?.date?new Date(alb.postMeta.date):alb.photos[0]?.date;
+  if(_d&&!isNaN(+_d)){
+    const dateEl=document.createElement('div');dateEl.className='cardDate';
+    dateEl.textContent=`${_d.getFullYear()}.${String(_d.getMonth()+1).padStart(2,'0')}.${String(_d.getDate()).padStart(2,'0')}`;
+    ov.appendChild(dateEl);
+  }
+  // 地点：单独一行，比 aMeta 更醒目
+  if(alb.location){
+    const locEl=document.createElement('div');locEl.className='cardLoc';
+    locEl.innerHTML=`<span style="opacity:.7">📍</span><span>${esc(alb.location)}</span>`;
+    ov.appendChild(locEl);
+  }
+  const meta=[];
+  if(alb.likes!=null) meta.push(`♥ ${fmtNum(alb.likes)}`);
+  const metaCount=document.createElement('div');metaCount.className='aMeta';
+  metaCount.dataset.n=alb.photos.length;
+  metaCount.dataset.vc=alb.photos.filter(p=>p.isVideo).length;
+  metaCount.dataset.iv=alb.postMeta?.is_video?'1':'';
+  metaCount.dataset.extra=meta.join('  ');
+  metaCount.textContent=mediaLabel(alb.photos,alb.postMeta)+(meta.length?' · '+meta.join('  '):'');
+  const aName=document.createElement('div');aName.className='aName';aName.textContent=alb.title;
+  ov.appendChild(aName);ov.appendChild(metaCount);
+  card.appendChild(ov);
+  card.addEventListener('click',()=>goAlbum(alb));
+  return card;
+}
+
+function renderHomeGrid(container){
+  container.innerHTML='';
+  const filtered=getFilteredAlbums();
+  if(!filtered.length){
+    container.innerHTML=`<div class="empty">${t('noTagResult')}</div>`;return;
+  }
+  const grid=document.createElement('div');grid.className='homeGrid';
+  filtered.forEach(alb=>grid.appendChild(buildCard(alb)));
+  container.appendChild(grid);
+}
+
+function refreshHomeFilter(){
+  const el=$('vHome');
+  const fb=$('filterBar');
+  const newBar=buildFilterBar();
+  if(fb) fb.replaceWith(newBar); else el.insertBefore(newBar,el.firstChild);
+  const gc=$('homeGridWrap');
+  if(gc) renderHomeGrid(gc);
+}
+
+function renderHome(){
+  const el=$('vHome');el.innerHTML='';
+  if(!S.albums.length){el.innerHTML=`<div class="empty">${t('noPhotos')}</div>`;return;}
+  el.appendChild(buildFilterBar());
+  const gc=document.createElement('div');gc.id='homeGridWrap';
+  el.appendChild(gc);
+  renderHomeGrid(gc);
+}
+
+// ── Render: Tag editor ────────────────────────────────────────────────────
+function renderTagEditor(alb, container){
+  const area=document.createElement('div');area.className='tagEditor';
+  const sugRow=document.createElement('div');sugRow.className='suggestRow';
+  const sugLbl=document.createElement('span');
+  sugLbl.className='sugLabel';sugLbl.textContent=t('tagSuggest')+'：';
+  sugRow.appendChild(sugLbl);
+
+  function refreshSug(){
+    while(sugRow.children.length>1) sugRow.removeChild(sugRow.lastChild);
+    const remaining=[...autoDetectTags(alb),...getQuickTags()]
+      .filter((s,i,a)=>a.indexOf(s)===i)
+      .filter(s=>!(alb.tags||[]).some(t=>t===s||t.startsWith(s+'/')||s.startsWith(t+'/')));
+    remaining.forEach(tag=>{
+      const c=document.createElement('span');c.className='sugChip';
+      c.textContent='+ '+tag;
+      c.addEventListener('click',()=>{ if(addTag(alb,tag)){rebuildArea();refreshSug();} });
+      sugRow.appendChild(c);
+    });
+    sugRow.style.display=remaining.length?'':'none';
+  }
+
+  function rebuildArea(){
+    area.innerHTML='';
+    (alb.tags||[]).forEach(tag=>{
+      const chip=document.createElement('span');chip.className='tagChip';
+      const x=document.createElement('button');x.className='tagX';x.textContent='×';
+      x.addEventListener('click',()=>{
+        if(tag.includes('/')){
+          removeTag(alb,tag);
+        } else {
+          // 刪除 L1 時同時刪除所有子 L2
+          alb.tags=(alb.tags||[]).filter(t=>t!==tag&&!t.startsWith(tag+'/'));
+          store.setAlbum(alb.name,{tags:alb.tags});
+          scheduleWrite(alb);
+        }
+        rebuildArea();refreshSug();
+      });
+      const parts=tag.split('/');
+      if(parts.length===2){
+        const pre=document.createElement('span');
+        pre.style.cssText='opacity:.4;font-size:10px;margin-right:2px';
+        pre.textContent=parts[0]+' ›';
+        chip.append(pre,document.createTextNode(parts[1]),x);
+      } else {
+        chip.append(document.createTextNode(tag),x);
+      }
+      area.appendChild(chip);
+    });
+  }
+
+  // ── 兩欄輸入行 ───────────────────────────────────────────────────────────
+  const addRow=document.createElement('div');addRow.className='tagAddRow';
+
+  // datalist 元素
+  const dl1=document.createElement('datalist');dl1.id='_tl1dl';
+  const dl2=document.createElement('datalist');dl2.id='_tl2dl';
+
+  // L1 輸入框
+  const l1Inp=document.createElement('input');
+  l1Inp.className='tagL1Input';l1Inp.placeholder='L1 分類…';
+  l1Inp.setAttribute('list','_tl1dl');
+
+  // L2 輸入框
+  const l2Inp=document.createElement('input');
+  l2Inp.className='tagL2Input';l2Inp.placeholder='L2 子項（可選）';
+  l2Inp.setAttribute('list','_tl2dl');
+  l2Inp.disabled=true;
+
+  const sep=document.createElement('span');sep.className='tagAddSep';sep.textContent='/';
+  const addBtn=document.createElement('button');addBtn.className='tagAddBtn';
+  addBtn.textContent='+';addBtn.type='button';
+
+  // 填充 L1 候選列表
+  const fillL1=()=>{
+    dl1.innerHTML='';
+    const l1s=new Set(getEffectiveHierarchy().map(g=>tagName(g.l1)));
+    S.albums.forEach(a=>(a.tags||[]).forEach(tag=>{
+      const sl=tag.indexOf('/');
+      l1s.add(sl===-1?tag:tag.slice(0,sl));
+    }));
+    l1s.forEach(v=>{const o=document.createElement('option');o.value=v;dl1.appendChild(o);});
+  };
+
+  // 根據已選 L1 更新 L2 候選列表
+  const fillL2=()=>{
+    const l1v=l1Inp.value.trim();
+    l2Inp.disabled=!l1v;
+    dl2.innerHTML='';
+    if(!l1v) return;
+    const l2s=new Set();
+    const grp=getEffectiveHierarchy().find(g=>tagName(g.l1)===l1v);
+    if(grp?.children) grp.children.forEach(c=>l2s.add(tagName(c.l2)));
+    S.albums.forEach(a=>(a.tags||[]).forEach(tag=>{
+      if(tag.startsWith(l1v+'/')) l2s.add(tag.slice(l1v.length+1));
+    }));
+    l2s.forEach(v=>{const o=document.createElement('option');o.value=v;dl2.appendChild(o);});
+  };
+
+  l1Inp.addEventListener('input',fillL2);
+  l1Inp.addEventListener('change',fillL2);
+
+  const doAdd=()=>{
+    const l1v=l1Inp.value.trim();
+    if(!l1v) return;
+    const l2v=l2Inp.value.trim();
+    let changed=false;
+    if(addTag(alb,l1v)) changed=true;
+    if(l2v&&addTag(alb,`${l1v}/${l2v}`)) changed=true;
+    if(changed){
+      l1Inp.value='';l2Inp.value='';l2Inp.disabled=true;
+      rebuildArea();refreshSug();
+    }
+  };
+
+  // Enter 在 L1：若 L2 可用則跳到 L2，否則直接提交
+  l1Inp.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();l2Inp.disabled?doAdd():l2Inp.focus();}
+  });
+  l2Inp.addEventListener('keydown',e=>{
+    if(e.key==='Enter'){e.preventDefault();doAdd();}
+  });
+  addBtn.addEventListener('click',doAdd);
+
+  fillL1();
+  addRow.append(dl1,dl2,l1Inp,sep,l2Inp,addBtn);
+
+  container.appendChild(area);
+  container.appendChild(addRow);
+  container.appendChild(sugRow);
+  rebuildArea();
+  refreshSug();
+}
+
+// ── Render: Album feed ────────────────────────────────────────────────────
+function renderAlbum(alb){
+  const el=$('vAlbum'); el.innerHTML=''; el.scrollTop=0;
+
+  // 相册头部（与 grid 模式共用 buildAlbumHeader）
+  el.appendChild(buildAlbumHeader(alb));
+
+  // 標籤編輯器
+  renderTagEditor(alb, el);
+
+  // 照片列表
+  alb.photos.forEach((photo,idx)=>{
+    const post=document.createElement('div');post.className='photoPost';
+    const wrap=document.createElement('div');wrap.className='postImgWrap';
+
+    if(photo.isVideo){
+      // 视频项：直接渲染 <video> 播放器
+      const vid=document.createElement('video');
+      vid.controls=true;vid.playsInline=true;
+      if(photo.poster){
+        if(!photo.poster.url) photo.poster.url=URL.createObjectURL(photo.poster.file);
+        vid.poster=photo.poster.url;
+      }
+      const obs=new IntersectionObserver(entries=>{
+        if(entries[0].isIntersecting){
+          if(!photo.url) photo.url=URL.createObjectURL(photo.file);
+          vid.src=photo.url;obs.disconnect();
+        }
+      },{rootMargin:'300px'});
+      obs.observe(vid);
+      wrap.appendChild(vid);
+    } else {
+      const img=document.createElement('img');img.alt=photo.name;
+      img.style.cssText='min-height:180px;background:#0a0a0a';
+      const obs=new IntersectionObserver(entries=>{
+        if(entries[0].isIntersecting){
+          if(!photo.url) photo.url=URL.createObjectURL(photo.file);
+          img.src=photo.url;obs.disconnect();
+        }
+      },{rootMargin:'300px'});
+      obs.observe(img);
+      wrap.appendChild(img);
+      // 视频标记：is_video 为 true 但没有下载 mp4（仅有封面图）
+      if(alb.postMeta?.is_video&&!alb.photos.some(p=>p.isVideo)){
+        const tag=document.createElement('div');tag.className='postVideoTag';tag.textContent=t('videoTag');
+        wrap.appendChild(tag);
+      }
+    }
+    const acts=document.createElement('div');acts.className='postActions';
+    const btnV=document.createElement('button');btnV.className='postActBtn';
+    btnV.dataset.action='view';btnV.textContent='🔗';btnV.title=t('viewFile');
+    btnV.addEventListener('click',e=>{e.stopPropagation();viewPhoto(alb,photo);});
+    const btnC=document.createElement('button');btnC.className='postActBtn';
+    btnC.dataset.action='copy';btnC.textContent='📋';btnC.title=t('copyPath');
+    btnC.addEventListener('click',e=>{e.stopPropagation();copyPhotoPath(alb,photo);});
+    const btnF=document.createElement('button');btnF.className='postActBtn';
+    btnF.dataset.action='folder';btnF.textContent='📂';btnF.title=t('openDir');
+    btnF.addEventListener('click',e=>{e.stopPropagation();openLocalFolder(alb);});
+    acts.append(btnV,btnC,btnF);wrap.appendChild(acts);
+    wrap.addEventListener('click',()=>openLB(alb,idx));
+
+    const info=document.createElement('div');info.className='postInfo';
+
+    // 日期 + 地点行
+    const dateRow=document.createElement('div');dateRow.className='postDateRow';
+    const dateEl=document.createElement('span');dateEl.className='postDate';dateEl.textContent=fmtDate(photo.date);
+    dateRow.appendChild(dateEl);
+    if(alb.location&&idx===0){
+      const locEl=document.createElement('span');locEl.className='postLoc';
+      locEl.innerHTML=`📍 ${esc(alb.location)}`;dateRow.appendChild(locEl);
+    }
+    info.appendChild(dateRow);
+
+    // 文案 textarea
+    const ta=document.createElement('textarea');
+    ta.className='postCaption';ta.placeholder=t('photoCaption');
+    ta.rows=1;ta.dataset.idx=idx;
+    // 优先 notes.json per-photo，其次 localStorage per-photo
+    // 第一张无独立备注时回退到相册整体文案；其余照片留空，不彼此同步
+    const ndCap=alb.notesData?.photos?.[photo.name];
+    const savedCap=ndCap!==undefined ? ndCap : store.getCaption(alb.name,photo.name);
+    if(savedCap!==null){
+      ta.value=savedCap;
+    } else if(idx===0&&alb.desc){
+      ta.value=alb.desc;
+    }
+    ta.addEventListener('input',()=>{
+      ar(ta);store.setCaption(alb.name,photo.name,ta.value);
+      if(S.view==='lb'&&S.currentIdx===idx) lbCaption.value=ta.value;
+      scheduleWrite(alb);
+    });
+    setTimeout(()=>ar(ta),0);
+
+    info.appendChild(ta);
+    post.append(wrap,info);
+    el.appendChild(post);
+  });
+}
+
+// ── Render: Lightbox ──────────────────────────────────────────────────────
+function renderLB(){
+  const alb=S.currentAlbum,idx=S.currentIdx,photo=alb.photos[idx];
+  if(!photo) return;
+  const lbVid=$('lbVideo');
+  if(photo.isVideo){
+    if(!photo.url) photo.url=URL.createObjectURL(photo.file);
+    if(lbVid.src!==photo.url){lbVid.src=photo.url;}
+    if(photo.poster){
+      if(!photo.poster.url) photo.poster.url=URL.createObjectURL(photo.poster.file);
+      lbVid.poster=photo.poster.url;
+    }
+    lbImg.style.display='none';lbVid.style.display='';
+  } else {
+    lbVid.pause();lbVid.style.display='none';lbVid.src='';
+    if(!photo.url) photo.url=URL.createObjectURL(photo.file);
+    lbImg.src=photo.url;lbImg.style.display='';
+  }
+  lbCounter.textContent=`${idx+1} / ${alb.photos.length}`;
+  lbDate.textContent=fmtDate(photo.date);
+
+  // 地点
+  const locEl=$('lbLoc'),locTxt=$('lbLocTxt');
+  if(alb.location){locEl.style.display='';locTxt.textContent=alb.location;}
+  else locEl.style.display='none';
+
+  // IG 链接
+  const igA=$('lbIgLink');
+  if(alb.igUrl){igA.href=alb.igUrl;igA.textContent=t('igLinkShort');igA.style.display='';}
+  else igA.style.display='none';
+
+  // 文案
+  const saved=store.getCaption(alb.name,photo.name);
+  lbCaption.value=saved!==null?saved:'';
+  ar(lbCaption);
+  const lbFoot=document.querySelector('.lbFoot');
+  const prevActs=lbFoot.querySelector('.lbActions');
+  if(prevActs) lbFoot.removeChild(prevActs);
+  const lbActs=document.createElement('div');lbActs.className='lbActions';
+  const lbBV=document.createElement('button');lbBV.className='lbActBtn';
+  lbBV.dataset.action='view';
+  lbBV.innerHTML=`🔗 <span class="lbActBtnLabel">${t('viewFile')}</span>`;
+  lbBV.addEventListener('click',()=>viewPhoto(alb,photo));
+  const lbBC=document.createElement('button');lbBC.className='lbActBtn';
+  lbBC.dataset.action='copy';
+  lbBC.innerHTML=`📋 <span class="lbActBtnLabel">${t('copyPath')}</span>`;
+  lbBC.addEventListener('click',()=>copyPhotoPath(alb,photo));
+  const lbBF=document.createElement('button');lbBF.className='lbActBtn';
+  lbBF.dataset.action='folder';
+  lbBF.innerHTML=`📂 <span class="lbActBtnLabel">${t('openDir')}</span>`;
+  lbBF.addEventListener('click',()=>openLocalFolder(alb));
+  lbActs.append(lbBV,lbBC,lbBF);lbFoot.insertBefore(lbActs,lbCaption);
+  lbPrev.disabled=idx===0;lbNext.disabled=idx===alb.photos.length-1;
+}
+function lbMove(dir){
+  $('lbVideo').pause();
+  const n=S.currentIdx+dir;
+  if(n<0||n>=S.currentAlbum.photos.length) return;
+  S.currentIdx=n;renderLB();
+}
+
+// ── Open folder ───────────────────────────────────────────────────────────
+async function openFolder(){
+  if(!window.showDirectoryPicker){toast(t('toastChrome'));return;}
+  let root;
+  try{root=await window.showDirectoryPicker({mode:'readwrite'});}
+  catch(e){if(e.name!=='AbortError') toast(t('toastNoFolder'));return;}
+  S.rootDirHandle=root;
+
+  $('vHome').innerHTML=`<div class="loading"><div class="spin"></div><div>${t('loading')}</div></div>`;
+  showView('home');hdrTitle.textContent='读取中…';
+  btnBack.style.display='none';btnViewToggle.style.display='none';
+  btnOpen.style.display='none';$('hdr').style.display='';
+
+  try{
+    S.rootName=root.name;
+    idb.set('lastFolder',root).catch(()=>{});
+    S.albums=await readFolder(root);
+    goHome();
+  }catch(e){
+    toast(t('toastReadFail')+e.message);showView('welcome');
+    btnOpen.style.display='';
+  }
+}
+
+// ── 哼哼猫导入 ────────────────────────────────────────────────────────────
+// 解析哼哼猫图片文件名的序号：圖片.jpg→0  圖片(1).jpg→1  圖片(2).jpg→2
+function hhImgIndex(name){
+  const m=name.match(/^(.+?)(?:\((\d+)\))?(\.[^.]+)$/);
+  return m?(m[2]!=null?parseInt(m[2]):0):0;
+}
+// 是否是哼哼猫风格的图片文件名（含圖片/图片/image 等变体，兼容简繁英）
+const HH_IMG=/\.(jpe?g|png|webp|heic|gif)$/i;
+const HH_VID=/\.(mp4|mov|avi|mkv|webm)$/i;
+// 文件夹名是否符合 {数字}_{文案} 格式
+function hhParseFolder(name){
+  const m=name.match(/^(\d+)_(.+)$/);
+  return m?{num:parseInt(m[1]),caption:m[2].trim()}:null;
+}
+
+async function hhcatConvert(){
+  if(!window.showDirectoryPicker){toast(t('toastChrome'));return;}
+  let root;
+  try{root=await window.showDirectoryPicker({mode:'readwrite'});}
+  catch(e){if(e.name!=='AbortError') toast(t('toastNoFolder'));return;}
+
+  // 收集用户子文件夹（含 {数字}_ 格式的帖子文件夹的那层）
+  const logEl=$('hhOverlayLog');
+  const subEl=$('hhOverlaySub');
+  logEl.innerHTML='';subEl.textContent='';
+  $('hhOverlay').classList.add('on');
+
+  function log(html){
+    logEl.insertAdjacentHTML('beforeend',html+'<br>');
+    logEl.scrollTop=logEl.scrollHeight;
+  }
+
+  // 判断 root 是否直接是用户目录（含帖子子文件夹），还是包含多用户的根目录
+  async function isUserDir(dir){
+    for await(const [name,h] of dir.entries()){
+      if(h.kind==='directory'&&hhParseFolder(name)) return true;
+    }
+    return false;
+  }
+
+  let userDirs=[];
+  if(await isUserDir(root)){
+    userDirs=[root];
+  } else {
+    for await(const [name,h] of root.entries()){
+      if(h.kind==='directory'&&!name.startsWith('.')&&await isUserDir(h))
+        userDirs.push(h);
+    }
+  }
+
+  if(!userDirs.length){
+    log('<span class="dim">⚠️ 未找到哼哼猫格式的文件夹（期望包含 {序号}_{文案} 子文件夹）</span>');
+    subEl.textContent='请选择哼哼猫下载的用户目录或根目录';
+    return;
+  }
+
+  let totalDone=0, totalSkip=0;
+
+  for(const userDir of userDirs){
+    // 收集所有帖子文件夹
+    const posts=[];
+    for await(const [name,h] of userDir.entries()){
+      if(h.kind==='directory'){
+        const p=hhParseFolder(name);
+        if(p) posts.push({...p,handle:h,name});
+      }
+    }
+    posts.sort((a,b)=>a.num-b.num);
+
+    log(`<span style="color:#fff">👤 ${userDir.name}  (${posts.length} 个帖子)</span>`);
+
+    for(const post of posts){
+      const dir=post.handle;
+      // 检查是否已转换（有 meta.json）
+      let alreadyDone=false;
+      try{await dir.getFileHandle('meta.json');alreadyDone=true;}catch{}
+      if(alreadyDone){
+        log(`<span class="dim">  [${post.num}] 已转换，跳过</span>`);
+        totalSkip++;continue;
+      }
+
+      // 收集文件
+      const imgs=[], vids=[];
+      for await(const [name,h] of dir.entries()){
+        if(h.kind!=='file') continue;
+        if(HH_IMG.test(name)) imgs.push({name,h});
+        else if(HH_VID.test(name)) vids.push({name,h});
+      }
+      imgs.sort((a,b)=>hhImgIndex(a.name)-hhImgIndex(b.name));
+
+      const isVideo=vids.length>0;
+      let renamedCount=0;
+
+      // 重命名函数：读取原文件 → 写新文件名 → 删除原文件
+      async function renameFile(handle, newName){
+        if(handle.name===newName) return;
+        const file=await handle.getFile();
+        const buf=await file.arrayBuffer();
+        const newH=await dir.getFileHandle(newName,{create:true});
+        const w=await newH.createWritable();
+        await w.write(buf); await w.close();
+        await dir.removeEntry(handle.name);
+        renamedCount++;
+      }
+
+      if(isVideo){
+        // 视频帖：封面 1.jpg + 1.mp4，多余图片删除
+        if(imgs.length) await renameFile(imgs[0].h,'1.jpg');
+        for(let i=1;i<imgs.length;i++) await dir.removeEntry(imgs[i].name);
+        if(vids.length) await renameFile(vids[0].h,'1.mp4');
+      } else {
+        // 图片帖：依次编号
+        for(let i=0;i<imgs.length;i++){
+          const ext=imgs[i].name.replace(/^.+(\.[^.]+)$/,'$1').toLowerCase()
+            .replace('.jpeg','.jpg');
+          await renameFile(imgs[i].h,`${i+1}${ext}`);
+        }
+      }
+
+      // 写 meta.json
+      const meta={
+        caption:post.caption, date:null,
+        location:'', location_id:'',
+        shortcode:'', ig_url:'',
+        is_video:isVideo,
+        image_count:isVideo?1:imgs.length,
+        downloaded:isVideo?1:imgs.length,
+        source:'hhcat',
+      };
+      const metaH=await dir.getFileHandle('meta.json',{create:true});
+      const mw=await metaH.createWritable();
+      await mw.write(JSON.stringify(meta,null,2)); await mw.close();
+
+      const tag=isVideo?'📹':`🖼️ ×${imgs.length}`;
+      log(`<span class="ok">  ✓ [${post.num}] ${tag} ${post.caption.slice(0,40)}</span>`);
+      subEl.textContent=`处理中… ${post.num}/${posts.length}`;
+      totalDone++;
+    }
+  }
+
+  // 写 _path.txt（仅单用户模式，且绑定了 root 就是用户目录）
+  // 注：File System Access API 无法获取真实绝对路径；
+  //     用 HTML 文件所在目录 + 文件夹名拼接作为最优估算
+  if(userDirs.length===1&&userDirs[0]===root){
+    const htmlDir=getHtmlDir();
+    // 优先用 HTML 同级目录推算绝对路径，否则退回到只写名字
+    const absGuess=htmlDir ? `${htmlDir}/${root.name}` : root.name;
+    try{
+      const pt=await root.getFileHandle('_path.txt',{create:true});
+      const pw=await pt.createWritable();
+      await pw.write(absGuess); await pw.close();
+    }catch{}
+    // 当前会话直接设置，不依赖文件读回
+    S.rootAbsPath=absGuess;
+  }
+
+  log(`<br><span style="color:#fff">✅ 完成  转换 ${totalDone} 个 | 已有 ${totalSkip} 个</span>`);
+  subEl.textContent='';
+
+  // 1.5 秒后关闭进度层，直接加载相册
+  setTimeout(async()=>{
+    $('hhOverlay').classList.remove('on');
+    S.rootDirHandle=root;
+    $('vHome').innerHTML=`<div class="loading"><div class="spin"></div><div>${t('loading')}</div></div>`;
+    showView('home');hdrTitle.textContent='读取中…';
+    btnBack.style.display='none';btnViewToggle.style.display='none';
+    btnOpen.style.display='none';$('hdr').style.display='';
+    try{
+      S.rootName=root.name;
+      idb.set('lastFolder',root).catch(()=>{});
+      S.albums=await readFolder(root);
+      goHome();
+    }catch(e){toast(t('toastReadFail')+e.message);showView('welcome');btnOpen.style.display='';btnBack.style.display='none';}
+  },1500);
+}
+
+$('btnHHCat').addEventListener('click',hhcatConvert);
+
+// ── IG 导入面板 ───────────────────────────────────────────────────────────
+$('btnShowIG').addEventListener('click',()=>{
+  const panel=$('igPanel');
+  panel.classList.toggle('on');
+  if(panel.classList.contains('on')) $('igInput').focus();
+});
+function getIgScriptPath(){
+  const dir=getHtmlDir();
+  return dir?`${dir}/ig_download.py`:'ig_download.py';
+}
+
+// Chip selection
+document.querySelectorAll('#igCountChips .igRangePreset').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    document.querySelectorAll('#igCountChips .igRangePreset').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    $('igCountCustom').value='';
+  });
+});
+$('igCountCustom').addEventListener('input',()=>{
+  document.querySelectorAll('#igCountChips .igRangePreset').forEach(b=>b.classList.remove('active'));
+});
+
+$('igFetchBtn').addEventListener('click',()=>{
+  const username=$('igInput').value.trim().replace(/^@/,'');
+  if(!username){$('igInput').focus();return;}
+  const activeChip=document.querySelector('#igCountChips .igRangePreset.active');
+  const custom=$('igCountCustom').value.trim();
+  const count=custom||(activeChip?activeChip.dataset.n:'');
+  const output=$('igOutput').value.trim().replace(/[/\\]+$/,'');
+  const dir=getHtmlDir();
+  const effectiveOutput=output||(dir?`${dir}/downloads`:'downloads');
+  $('igCmd1').value='pip install instaloader requests';
+  $('igCmd2').value=`python "${getIgScriptPath()}" ${username}${count?' --count '+count:''} --output "${effectiveOutput}"`;
+  updateIgStep3Note(username);
+  ['igStep1','igStep2','igStep3'].forEach(id=>$(id).classList.add('on'));
+  [$('igCmd1'),$('igCmd2')].forEach(ta=>{ta.style.height='auto';ta.style.height=ta.scrollHeight+'px';});
+});
+
+function makeCopyBtn(btnId, cmdId){
+  $(btnId).addEventListener('click',()=>{
+    const text=$(cmdId).value;
+    navigator.clipboard?.writeText(text).then(()=>{
+      const btn=$(btnId);
+      btn.textContent=t('copied');btn.classList.add('done');
+      toast(t('toastCopied'));
+      setTimeout(()=>{btn.textContent=t('copy');btn.classList.remove('done');},1800);
+    });
+  });
+}
+makeCopyBtn('igCopy1','igCmd1');
+makeCopyBtn('igCopy2','igCmd2');
+$('igInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('igFetchBtn').click();});
+
+// ── XHS 导入面板 ──────────────────────────────────────────────────────────────
+$('btnShowXHS').addEventListener('click',()=>{
+  const panel=$('xhsPanel');
+  panel.classList.toggle('on');
+  if(panel.classList.contains('on')){
+    $('igPanel').classList.remove('on');  // 互斥：关闭 IG 面板
+    $('xhsInput').focus();
+  }
+});
+$('btnShowIG').addEventListener('click',()=>{
+  $('xhsPanel').classList.remove('on');  // 互斥：关闭 XHS 面板
+});
+function getXhsScriptPath(){
+  const dir=getHtmlDir();
+  return dir?`${dir}/xhs_download.py`:'xhs_download.py';
+}
+$('xhsFetchBtn').addEventListener('click',()=>{
+  const raw=$('xhsInput').value.trim();
+  if(!raw){$('xhsInput').focus();return;}
+  // 提取 user_id（URL 或直接字符串）
+  const m=raw.match(/\/user\/profile\/([0-9a-fA-F]{20,})/);
+  const uid=m?m[1]:raw;
+  const dir=getHtmlDir();
+  const output=dir?`${dir}/downloads`:'downloads';
+  $('xhsCmd1').value='pip install xhs requests';
+  $('xhsCmd2').value=`python "${getXhsScriptPath()}" ${uid} --output "${output}"`;
+  $('xhsUserDisplay').textContent=uid;
+  ['xhsStep1','xhsStep2','xhsStep3'].forEach(id=>$(id).classList.add('on'));
+  [$('xhsCmd1'),$('xhsCmd2')].forEach(ta=>{ta.style.height='auto';ta.style.height=ta.scrollHeight+'px';});
+});
+makeCopyBtn('xhsCopy1','xhsCmd1');
+makeCopyBtn('xhsCopy2','xhsCmd2');
+$('xhsInput').addEventListener('keydown',e=>{if(e.key==='Enter')$('xhsFetchBtn').click();});
+$('igOutput').addEventListener('input',()=>{
+  localStorage.setItem('ig-output-path',$('igOutput').value);
+  updateIgStep3Note();
+});
+
+// ── Events ────────────────────────────────────────────────────────────────
+btnOpen.addEventListener('click',openFolder);
+$('btnWelcomeOpen').addEventListener('click',openFolder);
+btnBack.addEventListener('click',()=>{if(S.view==='album')goHome();});
+$('btnLBBack').addEventListener('click',closeLB);
+lbPrev.addEventListener('click',()=>lbMove(-1));
+lbNext.addEventListener('click',()=>lbMove(1));
+
+lbCaption.addEventListener('input',()=>{
+  ar(lbCaption);
+  const alb=S.currentAlbum,photo=alb.photos[S.currentIdx];
+  store.setCaption(alb.name,photo.name,lbCaption.value);
+  const ta=$('vAlbum').querySelector(`[data-idx="${S.currentIdx}"]`);
+  if(ta&&ta.value!==lbCaption.value){ta.value=lbCaption.value;ar(ta);}
+  scheduleWrite(alb);
+});
+
+btnSort.addEventListener('click',()=>{
+  S.sortDesc=!S.sortDesc;
+  updateSortBtn();
+  renderHome();
+});
+btnMediaFilter.addEventListener('click',()=>{
+  S.mediaFilter={all:'video',video:'photo',photo:'all'}[S.mediaFilter];
+  updateMediaBtn();
+  renderHome();
+});
+
+btnViewToggle.addEventListener('click',()=>{
+  if(S.albumMode==='feed'){
+    S.albumMode='grid';S.gridCols=3;renderAlbumGrid(S.currentAlbum);
+  } else if(S.gridCols<5){
+    S.gridCols++;renderAlbumGrid(S.currentAlbum);
+  } else {
+    S.albumMode='feed';S.gridCols=3;renderAlbum(S.currentAlbum);
+  }
+  updateGridBtn();
+});
+
+function buildAlbumHeader(alb){
+  // 构建相册头部（feed 和 grid 共用）
+  const savedMeta=store.getAlbum(alb.name);
+  const hdrEl=document.createElement('div');hdrEl.className='albumMeta';
+
+  const titleInp=document.createElement('input');
+  titleInp.className='albumMetaTitle';titleInp.value=alb.title;titleInp.placeholder=t('albumTitle');
+  titleInp.addEventListener('input',()=>{
+    alb.title=titleInp.value;hdrTitle.textContent=titleInp.value;
+    store.setAlbum(alb.name,{title:titleInp.value});scheduleWrite(alb);
+  });
+
+  const row=document.createElement('div');row.className='albumMetaRow';
+  {
+    const loc=document.createElement('div');loc.className='albumLocation';loc.style.flex='1';
+    const pin=document.createElement('span');pin.textContent='📍';pin.style.flexShrink='0';
+    const locInp=document.createElement('input');
+    locInp.className='albumLocationInput';
+    locInp.value=alb.location||'';
+    locInp.placeholder=t('locationPh')||'添加地点…';
+    locInp.addEventListener('input',()=>{
+      alb.location=locInp.value.trim();
+      store.setAlbum(alb.name,{location:alb.location});scheduleWrite(alb);
+    });
+    loc.append(pin,locInp);row.appendChild(loc);
+  }
+  if(alb.likes!=null){
+    const lk=document.createElement('span');lk.className='albumLikes';
+    lk.textContent=`♥ ${fmtNum(alb.likes)}`;row.appendChild(lk);
+  }
+  if(alb.igUrl){
+    const a=document.createElement('a');a.className='albumIgLink';
+    a.href=alb.igUrl;a.target='_blank';a.textContent=t('igLink');row.appendChild(a);
+  }
+  {
+    const fa=document.createElement('a');fa.className='albumIgLink';
+    fa.href='#';fa.textContent=t('openDir');
+    fa.addEventListener('click',e=>{e.preventDefault();openLocalFolder(alb);});
+    row.appendChild(fa);
+  }
+
+  const descTa=document.createElement('textarea');
+  descTa.className='albumMetaDesc';descTa.placeholder=t('albumDesc');
+  descTa.value=savedMeta.desc!==undefined?savedMeta.desc:(alb.desc||'');
+  descTa.rows=1;
+  descTa.addEventListener('input',()=>{
+    ar(descTa);alb.desc=descTa.value;
+    store.setAlbum(alb.name,{desc:descTa.value});scheduleWrite(alb);
+  });
+
+  const countEl=document.createElement('div');countEl.className='albumMetaCount';
+  countEl.dataset.n=alb.photos.length;
+  countEl.dataset.vc=alb.photos.filter(p=>p.isVideo).length;
+  countEl.dataset.iv=alb.postMeta?.is_video?'1':'';
+  countEl.dataset.fromIG=alb.fromIG?'1':'';
+  countEl.textContent=mediaLabel(alb.photos,alb.postMeta)+(alb.fromIG?' '+t('fromIGBadge'):'');
+
+  hdrEl.append(titleInp);
+  if(row.children.length) hdrEl.appendChild(row);
+  hdrEl.append(descTa,countEl);
+  setTimeout(()=>ar(descTa),0);
+  return hdrEl;
+}
+
+function renderAlbumGrid(alb){
+  const el=$('vAlbum'); el.innerHTML=''; el.scrollTop=0;
+  el.appendChild(buildAlbumHeader(alb));
+  renderTagEditor(alb, el);
+  const grid=document.createElement('div');
+  grid.style.cssText=`display:grid;grid-template-columns:repeat(${S.gridCols},1fr);gap:2px;padding:2px`;
+  alb.photos.forEach((photo,idx)=>{
+    const cell=document.createElement('div');
+    cell.style.cssText='aspect-ratio:1;overflow:hidden;background:#0a0a0a;cursor:pointer';
+    const img=document.createElement('img');
+    img.style.cssText='width:100%;height:100%;object-fit:cover;display:block';
+    const obs=new IntersectionObserver(e=>{
+      if(e[0].isIntersecting){
+        // 视频项用封面图（poster）；否则用自身
+        const src=photo.isVideo&&photo.poster?photo.poster:photo;
+        if(!src.url) src.url=URL.createObjectURL(src.file);
+        img.src=src.url;obs.disconnect();
+      }
+    },{rootMargin:'200px'});
+    obs.observe(img);
+    cell.appendChild(img);
+    cell.addEventListener('click',()=>openLB(alb,idx));
+    grid.appendChild(cell);
+  });
+  el.appendChild(grid);
+}
+
+// 键盘 & 触控
+document.addEventListener('keydown',e=>{
+  if(S.view==='lb'){
+    if(e.key==='ArrowLeft')lbMove(-1);
+    if(e.key==='ArrowRight')lbMove(1);
+    if(e.key==='Escape')closeLB();
+  }
+});
+let tx=0;
+lbImg.addEventListener('touchstart',e=>{tx=e.touches[0].clientX},{passive:true});
+lbImg.addEventListener('touchend',e=>{
+  const dx=e.changedTouches[0].clientX-tx;
+  if(Math.abs(dx)>50) lbMove(dx<0?1:-1);
+},{passive:true});
+
+// ── Utils ─────────────────────────────────────────────────────────────────
+function fmtDate(d){
+  if(!d)return'';
+  try{
+    return new Intl.DateTimeFormat(LANGS[currentLang].locale,{
+      year:'numeric',month:'short',day:'numeric',hour:'2-digit',minute:'2-digit'
+    }).format(d);
+  }catch{return d.toLocaleString();}
+}
+function fmtNum(n){
+  if(n==null)return'';
+  return n>=10000?(n/10000).toFixed(1)+'万':n.toLocaleString();
+}
+function esc(s){
+  return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+}
+// 自動偵測 HTML 文件所在目錄（適配換電腦）
+function getHtmlDir(){
+  const href=window.location.href;
+  if(!href.startsWith('file://')) return null;
+  const full=decodeURIComponent(href.split('?')[0].split('#')[0]);
+  let p=full.slice(0,full.lastIndexOf('/')).replace(/^file:\/\//,'');
+  if(/^\/[A-Za-z]:\//.test(p)) p=p.slice(1); // Windows: /F:/Claude → F:/Claude
+  return p;
+}
+function getPhotoPath(alb,photo){
+  // 优先用 _path.txt（与 getFolderPath 保持一致）
+  if(S.rootAbsPath){
+    return alb.rootAlbum
+      ? `${S.rootAbsPath}/${photo.name}`
+      : `${S.rootAbsPath}/${alb.name}/${photo.name}`;
+  }
+  const saved=localStorage.getItem('ig-output-path');
+  const base=(saved||getHtmlDir()+'/downloads'||'').trim().replace(/[/\\]+$/,'');
+  if(!base) return null;
+  const root=S.rootName||'';
+  return alb.rootAlbum ? `${base}/${root}/${photo.name}` : `${base}/${root}/${alb.name}/${photo.name}`;
+}
+function getFolderPath(alb){
+  // 优先用 _path.txt（Python 自动写入，最可靠）
+  if(S.rootAbsPath){
+    return alb.rootAlbum ? S.rootAbsPath : `${S.rootAbsPath}/${alb.name}`;
+  }
+  // 退回：手动设置的路径 或 HTML 同级 downloads 目录
+  const saved=localStorage.getItem('ig-output-path');
+  const base=(saved||getHtmlDir()+'/downloads'||'').trim().replace(/[/\\]+$/,'');
+  if(!base) return null;
+  const root=S.rootName||'';
+  return alb.rootAlbum ? `${base}/${root}` : `${base}/${root}/${alb.name}`;
+}
+function openLocalFolder(alb){
+  const path=getFolderPath(alb);
+  if(!path){toast(t('pathUnknown'),2800);return;}
+  const isWin=navigator.userAgent.includes('Windows');
+  const finalPath=isWin?path.replace(/\//g,'\\'):path;
+  navigator.clipboard.writeText(finalPath).then(()=>toast(t('folderCopied'),3500)).catch(()=>{
+    const inp=document.createElement('input');
+    inp.style.cssText='position:fixed;top:-999px;opacity:0';
+    inp.value=finalPath;document.body.appendChild(inp);inp.select();
+    document.execCommand('copy');document.body.removeChild(inp);
+    toast(t('folderCopied'),3500);
+  });
+}
+function copyPhotoPath(alb,photo){
+  const path=getPhotoPath(alb,photo);
+  if(!path){toast(t('pathUnknown'),2800);return;}
+  navigator.clipboard.writeText(path).then(()=>toast(t('pathCopied'))).catch(()=>{
+    const inp=document.createElement('input');
+    inp.style.cssText='position:fixed;top:-999px;opacity:0';
+    inp.value=path;document.body.appendChild(inp);inp.select();
+    document.execCommand('copy');document.body.removeChild(inp);
+    toast(t('pathCopied'));
+  });
+}
+function viewPhoto(alb,photo){
+  if(!photo.url) photo.url=URL.createObjectURL(photo.file);
+  window.open(photo.url,'_blank');
+}
+function ar(el){el.style.height='auto';el.style.height=el.scrollHeight+'px';}
+
+// ── Restore last folder ───────────────────────────────────────────────────
+async function tryRestoreFolder(){
+  try{
+    const h=await idb.get('lastFolder');
+    if(!h) return;
+    const rb=$('btnReopen');
+    rb.dataset.name=h.name;
+    rb.textContent=t('reopenFolder')(h.name);
+    rb.style.display='';
+    rb.onclick=async()=>{
+      let perm=await h.queryPermission({mode:'readwrite'});
+      if(perm==='prompt') perm=await h.requestPermission({mode:'readwrite'});
+      if(perm!=='granted'){rb.style.display='none';return;}
+      S.rootDirHandle=h;
+      $('vHome').innerHTML=`<div class="loading"><div class="spin"></div><div>${t('loading')}</div></div>`;
+      showView('home');hdrTitle.textContent='读取中…';
+      btnBack.style.display='none';btnViewToggle.style.display='none';
+      btnOpen.style.display='none';$('hdr').style.display='';
+      try{
+        S.rootName=h.name;
+        idb.set('lastFolder',h).catch(()=>{});
+        S.albums=await readFolder(h);
+        goHome();
+      }catch(e){toast(t('toastReadFail')+e.message);showView('welcome');btnOpen.style.display='';btnBack.style.display='none';}
+    };
+  }catch{}
+}
+
+// ── Init ──────────────────────────────────────────────────────────────────
+buildLangSelector();
+const _savedIgOutput=localStorage.getItem('ig-output-path');
+if(_savedIgOutput) $('igOutput').value=_savedIgOutput;
+else { const _d=getHtmlDir(); if(_d) $('igOutput').value=_d+'/downloads'; }
+applyLang();
+if(!window.showDirectoryPicker) $('compatNote').style.color='#ff4d4d';
+tryRestoreFolder();
+</script>
+</body>
+</html>
